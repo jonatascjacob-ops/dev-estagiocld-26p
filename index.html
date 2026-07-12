@@ -76,7 +76,7 @@
 
     <header class="bg-[#1E2D3D] text-white p-6 shadow-md text-center">
         <h1 class="text-3xl font-bold tracking-tight font-serif">Jornada de Alinhamento e Restauração</h1>
-        <p class="text-[#DCA134] mt-2 text-sm uppercase tracking-widest font-medium">Curso de Liderança e Discipulado (CLD Atibaia)</p>
+        <p class="text-[#DCA134] mt-2 text-xs md:text-sm uppercase tracking-wider font-semibold max-w-2xl mx-auto leading-relaxed">Devocional para alunos do Curso de Liderança e Discipulado (CLD) em processo de restauração.</p>
     </header>
 
     <main class="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
@@ -85,14 +85,23 @@
             <summary class="p-5 font-bold text-lg md:text-xl text-[#1E2D3D] cursor-pointer flex justify-between items-center select-none list-none">
                 <div class="flex items-center gap-3">
                     <span>🧭</span>
-                    <span>Como funciona a dinâmica de 30 minutos?</span>
+                    <span>Como funciona a dinâmica de tempo?</span>
                 </div>
                 <span class="text-[#C86240] text-sm font-semibold group-open:hidden">Como usar este guia ➔</span>
                 <span class="text-slate-500 text-sm font-semibold hidden group-open:inline">Recolher ✖</span>
             </summary>
             
             <div class="p-6 border-t border-slate-100 bg-[#FAF8F5]/50 flex flex-col md:flex-row items-center gap-8">
-                <div class="w-full md:w-1/2">
+                <div class="w-full md:w-1/2 flex flex-col items-center">
+                    <div class="w-full max-w-xs mb-4">
+                        <label for="total-time-input" class="block text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-1">
+                            Ajustar tempo disponível
+                        </label>
+                        <div class="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm w-full">
+                            <input type="range" id="total-time-input" min="10" max="120" value="30" step="5" class="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#C86240]" oninput="updateTimeBreakdown()">
+                            <span id="time-display" class="font-extrabold text-[#C86240] text-sm min-w-[70px] text-right">30 min</span>
+                        </div>
+                    </div>
                     <div class="chart-container">
                         <canvas id="timeChart"></canvas>
                     </div>
@@ -101,21 +110,21 @@
                     <div class="flex items-start gap-3">
                         <span class="text-2xl">🙏</span>
                         <div>
-                            <h3 class="font-bold text-[#1E2D3D]">1. Preparação (5 min)</h3>
+                            <h3 class="font-bold text-[#1E2D3D]">1. Preparação (<span id="prep-time-label">5</span> min)</h3>
                             <p class="text-sm text-slate-600">Acalme seu coração em oração silenciosa e leia o versículo proposto para o dia.</p>
                         </div>
                     </div>
                     <div class="flex items-start gap-3">
                         <span class="text-2xl">📖</span>
                         <div>
-                            <h3 class="font-bold text-[#1E2D3D]">2. Meditação & MEB (15 min)</h3>
+                            <h3 class="font-bold text-[#1E2D3D]">2. Meditação & MEB (<span id="med-time-label">15</span> min)</h3>
                             <p class="text-sm text-slate-600">Escreva em seu caderno as respostas reflexivas das perguntas de Observação e Interpretação.</p>
                         </div>
                     </div>
                     <div class="flex items-start gap-3">
                         <span class="text-2xl">🏃</span>
                         <div>
-                            <h3 class="font-bold text-[#1E2D3D]">3. Resposta Prática (10 min)</h3>
+                            <h3 class="font-bold text-[#1E2D3D]">3. Resposta Prática (<span id="resp-time-label">10</span> min)</h3>
                             <p class="text-sm text-slate-600">Trace uma aplicação tangível para aplicar hoje mesmo e termine em oração de entrega.</p>
                         </div>
                     </div>
@@ -123,20 +132,43 @@
             </div>
         </details>
 
-        <section id="dashboard-section" class="bg-white rounded-xl shadow-sm p-5 border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div>
-                <h3 class="font-bold text-slate-800 text-base md:text-lg">Progresso da Jornada (13/07 a 09/08)</h3>
-                <p class="text-slate-500 text-xs md:text-sm">Complete os 28 dias de estudo de forma constante e sincera.</p>
+        <section id="dashboard-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base md:text-lg">Progresso da Jornada (13/07 a 09/08)</h3>
+                    <p class="text-slate-500 text-xs md:text-sm">Complete os 28 dias de estudo de forma constante e sincera.</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="bg-[#FAF8F5] border border-slate-200 rounded-lg px-4 py-2 text-center shadow-inner">
+                        <span id="progress-percentage" class="text-2xl font-black text-[#C86240]">0%</span>
+                        <span class="block text-[10px] text-slate-500 font-bold uppercase tracking-wider">Concluído</span>
+                    </div>
+                    <div class="text-left">
+                        <span id="progress-counts" class="text-sm font-bold text-slate-700">0 lidos</span>
+                        <button onclick="resetProgress()" class="block text-[10px] text-red-500 hover:text-red-700 underline font-semibold mt-1">Limpar Progresso</button>
+                    </div>
+                </div>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="bg-[#FAF8F5] border border-slate-200 rounded-lg px-4 py-2 text-center shadow-inner">
-                    <span id="progress-percentage" class="text-2xl font-black text-[#C86240]">0%</span>
-                    <span class="block text-[10px] text-slate-500 font-bold uppercase tracking-wider">Concluído</span>
-                </div>
-                <div class="text-left">
-                    <span id="progress-counts" class="text-sm font-bold text-slate-700">0 lidos</span>
-                    <button onclick="resetProgress()" class="block text-[10px] text-red-500 hover:text-red-700 underline font-semibold mt-1">Limpar Progresso</button>
-                </div>
+            <div class="border-t border-slate-100 bg-[#FAF8F5]/30 p-4">
+                <details class="group">
+                    <summary class="flex justify-between items-center cursor-pointer text-xs font-bold text-slate-500 uppercase tracking-wider select-none list-none">
+                        <div class="flex items-center gap-2">
+                            <span>📝</span>
+                            <span>Log de Atividades & Progresso</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button type="button" onclick="exportLog(event)" class="bg-[#C86240] hover:bg-[#B35232] text-white text-[10px] font-bold px-2.5 py-1 rounded transition-colors flex items-center gap-1 normal-case tracking-normal">
+                                <span>📥</span> Baixar Arquivo Log
+                            </button>
+                            <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                        </div>
+                    </summary>
+                    <div class="mt-3 overflow-x-auto">
+                        <div id="log-list" class="space-y-1.5 max-h-40 overflow-y-auto text-xs text-slate-600 font-mono pr-2">
+                            <p class="italic text-slate-400">Nenhuma atividade registrada ainda. Conclua uma devocional para iniciar o log!</p>
+                        </div>
+                    </div>
+                </details>
             </div>
         </section>
 
@@ -237,7 +269,7 @@
     </main>
 
     <footer class="bg-[#1E2D3D] text-white/60 text-center py-6 text-sm mt-12">
-        <p>© 2026 CLD Atibaia. Ministérios Palavra da Vida.</p>
+        <p>© 2026 Ministério com Juventude - Organização Palavra da Vida Sudeste.</p>
         <p class="text-xs text-white/40 mt-1">"A obediência é melhor do que o sacrifício."</p>
     </footer>
 
@@ -603,7 +635,7 @@
                 meb: {
                     obs: "De acordo com o apóstolo, qual é o apelo de Deus para os relacionamentos interpessoais e qual a consequência de defraudar um irmão?",
                     int: "Como quebrar as regras de relacionamento para alimentar uma proximidade expôs a moça ao prejuízo espiritual e à disciplina?",
-                    app: "Você consegue pedir perdão a Deus com sinceridade por ter envolvido a moça em uma situação que prejudicou o foco dela em Atibaia?"
+                    app: "Você consegue pedir perdão a Deus com sinceridade por ter envolvido a moça em uma situação que prejudicou o foco dela no curso?"
                 }
             },
             {
@@ -764,7 +796,7 @@
                 meb: {
                     obs: "O que o salmista ordena que sua alma faça e quais são as bênçãos pelas quais ele expressa profunda gratidão?",
                     int: "Como esse processo de correção e disciplina amadureceu o seu caráter de forma que você se tornou um homem mais preparado para liderar outros?",
-                    app: "Ao concluir estas 4 semanas, qual é a sua principal oração e compromisso para servir no Reino com integridade a partir de Atibaia?"
+                    app: "Ao concluir estas 4 semanas, qual é a sua principal oração e compromisso para servir no Reino com integridade?"
                 }
             },
             {
@@ -814,6 +846,9 @@
 
         function initApp() {
             renderChart();
+            updateTimeBreakdown();
+            migrateOldLogs();
+            renderLogs();
             renderCalendar();
             renderDrawer();
             
@@ -831,6 +866,112 @@
             }
             highlightToday();
             updateProgressDOM();
+        }
+
+        function updateTimeBreakdown() {
+            const slider = document.getElementById('total-time-input');
+            const display = document.getElementById('time-display');
+            let T = parseInt(slider.value) || 30;
+            if (T < 10) T = 10;
+            display.textContent = `${T} min`;
+            
+            const prep = Math.max(1, Math.round(T * (5/30)));
+            const med = Math.max(5, Math.round(T * (15/30)));
+            const resp = T - prep - med;
+            
+            document.getElementById('prep-time-label').textContent = prep;
+            document.getElementById('med-time-label').textContent = med;
+            document.getElementById('resp-time-label').textContent = resp;
+            
+            if (timeChartInstance) {
+                timeChartInstance.data.datasets[0].data = [prep, med, resp];
+                timeChartInstance.data.labels = [`Preparação (${prep}m)`, `Meditação (${med}m)`, `Resposta (${resp}m)`];
+                timeChartInstance.update();
+            }
+        }
+
+        function logActivity(dayNumber, action) {
+            const devo = devotionals.find(d => d.day === dayNumber);
+            const title = devo ? devo.title : (dayNumber === 0 ? 'Sistema' : `Dia ${dayNumber}`);
+            let logs = JSON.parse(localStorage.getItem('apv_devotional_log') || '[]');
+            const entry = {
+                timestamp: new Date().toLocaleString('pt-BR'),
+                day: dayNumber,
+                title: title,
+                action: action
+            };
+            logs.unshift(entry);
+            if (logs.length > 100) {
+                logs = logs.slice(0, 100);
+            }
+            localStorage.setItem('apv_devotional_log', JSON.stringify(logs));
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const logList = document.getElementById('log-list');
+            if (!logList) return;
+            const logs = JSON.parse(localStorage.getItem('apv_devotional_log') || '[]');
+            if (logs.length === 0) {
+                logList.innerHTML = `<p class="italic text-slate-400">Nenhuma atividade registrada ainda. Conclua uma devocional para iniciar o log!</p>`;
+                return;
+            }
+            logList.innerHTML = logs.map(log => {
+                let badgeColor = "text-slate-500";
+                if (log.action === "Concluído") badgeColor = "text-emerald-600 font-bold";
+                if (log.action === "Marcado como não lido") badgeColor = "text-amber-600";
+                if (log.action === "Histórico zerado") badgeColor = "text-rose-600 font-bold";
+                
+                const dayText = log.day === 0 ? '' : `[Dia ${log.day}] `;
+                return `<div class="py-1 border-b border-slate-100 flex justify-between gap-4 font-sans">
+                    <span><span class="text-slate-400 font-mono">[${log.timestamp}]</span> ${dayText}${log.title}</span>
+                    <span class="${badgeColor}">${log.action}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function migrateOldLogs() {
+            const completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
+            let logs = JSON.parse(localStorage.getItem('apv_devotional_log') || '[]');
+            if (completed.length > 0 && logs.length === 0) {
+                completed.forEach(dayNum => {
+                    const devo = devotionals.find(d => d.day === dayNum);
+                    const title = devo ? devo.title : `Dia ${dayNum}`;
+                    logs.push({
+                        timestamp: new Date().toLocaleString('pt-BR') + ' (Importado)',
+                        day: dayNum,
+                        title: title,
+                        action: 'Concluído'
+                    });
+                });
+                localStorage.setItem('apv_devotional_log', JSON.stringify(logs));
+            }
+        }
+
+        function exportLog(event) {
+            if (event) event.stopPropagation();
+            const logs = JSON.parse(localStorage.getItem('apv_devotional_log') || '[]');
+            if (logs.length === 0) {
+                alert("Nenhuma atividade registrada para exportar.");
+                return;
+            }
+            let text = "=== LOG DE PROGRESSO DA DEVOCIONAL ===\n";
+            text += `Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
+            text += "======================================\n\n";
+            logs.forEach(log => {
+                const dayText = log.day === 0 ? 'Sistema' : `Dia ${log.day}`;
+                text += `[${log.timestamp}] ${dayText} - ${log.title} -> ${log.action}\n`;
+            });
+            
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `devocional-progresso-log.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function renderChart() {
@@ -959,7 +1100,7 @@
                     if (titleSpan && !btn.querySelector('.today-badge')) {
                         const badge = document.createElement('span');
                         badge.className = 'today-badge inline-block ml-2 bg-[#C86240] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse';
-                        badge.textContent = 'Foco';
+                        badge.textContent = 'hoje';
                         titleSpan.after(badge);
                     }
                 }
@@ -1089,8 +1230,14 @@
         function toggleDayCompleted() {
             if (!currentActiveDay) return;
             let completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
-            if (completed.includes(currentActiveDay)) { completed = completed.filter(d => d !== currentActiveDay); } 
-            else { completed.push(currentActiveDay); }
+            if (completed.includes(currentActiveDay)) { 
+                completed = completed.filter(d => d !== currentActiveDay); 
+                logActivity(currentActiveDay, "Marcado como não lido");
+            } 
+            else { 
+                completed.push(currentActiveDay); 
+                logActivity(currentActiveDay, "Concluído");
+            }
             localStorage.setItem('apv_completed_days', JSON.stringify(completed));
             updateMarkReadButton(completed.includes(currentActiveDay));
             updateProgressDOM();
@@ -1127,6 +1274,7 @@
         function resetProgress() {
             if (confirm("Deseja zerar todo o seu histórico e progresso de estudos diários?")) {
                 localStorage.setItem('apv_completed_days', '[]');
+                logActivity(0, "Histórico zerado");
                 updateProgressDOM();
                 if (currentActiveDay) { updateMarkReadButton(false); }
                 closeReader();
