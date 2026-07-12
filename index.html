@@ -399,7 +399,20 @@
         function handleLogout() {
             if (confirm("Deseja sair da sua conta? Seu progresso continuará salvo neste navegador.")) {
                 window.localStorage.removeItem('cld_logged_in_user');
-                window.location.reload();
+                window.location.hash = ''; // Limpa o hash do dia aberto
+                
+                // Exibe a tela de login
+                const loginOverlay = document.getElementById('login-overlay');
+                if (loginOverlay) {
+                    loginOverlay.classList.remove('hidden');
+                }
+                
+                // Reseta a senha digitada
+                const passwordInput = document.getElementById('login-password-input');
+                if (passwordInput) passwordInput.value = '';
+                
+                // Fecha o leitor e reseta os painéis
+                closeReader();
             }
         }
 
