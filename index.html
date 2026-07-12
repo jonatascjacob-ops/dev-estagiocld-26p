@@ -132,12 +132,18 @@
             </div>
         </details>
 
-        <section id="dashboard-section" class="bg-white rounded-xl shadow-sm p-5 border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div>
-                <h3 class="font-bold text-slate-800 text-base md:text-lg">Progresso da Jornada (13/07 a 09/08)</h3>
-                <p class="text-slate-500 text-xs md:text-sm">Complete os 28 dias de estudo de forma constante e sincera.</p>
+        <section id="dashboard-section" class="bg-white rounded-xl shadow-sm p-5 border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="space-y-3 w-full md:w-auto">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base md:text-lg">Progresso da Jornada (13/07 a 09/08)</h3>
+                    <p class="text-slate-500 text-xs md:text-sm">Complete os 28 dias de estudo de forma constante e sincera.</p>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2 max-w-xs w-full">
+                    <span class="text-xs font-bold text-slate-500 uppercase">Aluno:</span>
+                    <input type="text" id="user-name-input" onchange="saveUserName()" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none flex-grow" placeholder="Nome Completo">
+                </div>
             </div>
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 w-full md:w-auto justify-end">
                 <div class="bg-[#FAF8F5] border border-slate-200 rounded-lg px-4 py-2 text-center shadow-inner">
                     <span id="progress-percentage" class="text-2xl font-black text-[#C86240]">0%</span>
                     <span class="block text-[10px] text-slate-500 font-bold uppercase tracking-wider">Concluído</span>
@@ -251,6 +257,9 @@
     </footer>
 
     <script>
+        // URL da implantação do Google Apps Script Web App (Cole aqui o URL gerado no script)
+        const GOOGLE_SCRIPT_URL = ""; 
+
         const devotionals = [
             // SEMANA 1 (13/07 a 19/07)
             {
@@ -843,6 +852,11 @@
             }
             highlightToday();
             updateProgressDOM();
+            checkUserName();
+            
+            // Tenta processar conexões pendentes caso o usuário esteja online
+            processPendingSyncs();
+            window.addEventListener('online', processPendingSyncs);
 
             // Secret trigger: Ctrl+Shift+L to export logs
             window.addEventListener('keydown', (e) => {
@@ -872,6 +886,112 @@
                     .then(reg => console.log('Service Worker registrado:', reg.scope))
                     .catch(err => console.error('Erro ao registrar Service Worker:', err));
             }
+        }
+
+        function checkUserName() {
+            const name = localStorage.getItem('cld_user_name');
+            const modal = document.getElementById('name-modal');
+            const input = document.getElementById('user-name-input');
+            if (!name) {
+                if (modal) modal.classList.remove('hidden');
+            } else {
+                if (input) input.value = name;
+            }
+        }
+
+        function submitModalName() {
+            const input = document.getElementById('modal-name-input');
+            const name = input ? input.value.trim() : "";
+            if (!name) {
+                alert("Por favor, digite seu nome para continuar.");
+                return;
+            }
+            localStorage.setItem('cld_user_name', name);
+            const modal = document.getElementById('name-modal');
+            if (modal) modal.classList.add('hidden');
+            const mainInput = document.getElementById('user-name-input');
+            if (mainInput) mainInput.value = name;
+            logActivity(0, "Iniciou a Jornada");
+        }
+
+        function saveUserName() {
+            const input = document.getElementById('user-name-input');
+            const name = input ? input.value.trim() : "";
+            if (name) {
+                localStorage.setItem('cld_user_name', name);
+                logActivity(0, `Nome alterado para: ${name}`);
+            }
+        }
+
+        function syncActivity(dayNumber, action) {
+            const student = localStorage.getItem('cld_user_name') || "Usuário Anônimo";
+            const payload = {
+                student: student,
+                day: dayNumber === 0 ? "Sistema" : `Dia ${dayNumber}`,
+                title: dayNumber === 0 ? "N/A" : (devotionals.find(d => d.day === dayNumber)?.title || ""),
+                action: action,
+                timestamp: new Date().toLocaleString('pt-BR')
+            };
+
+            if (!GOOGLE_SCRIPT_URL) {
+                return; // Script URL not set yet
+            }
+
+            if (!navigator.onLine) {
+                queueSync(payload);
+                return;
+            }
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            }).catch(err => {
+                console.warn('Falha ao sincronizar online, enfileirando...', err);
+                queueSync(payload);
+            });
+        }
+
+        function queueSync(payload) {
+            let pending = JSON.parse(localStorage.getItem('apv_pending_syncs') || '[]');
+            pending.push(payload);
+            localStorage.setItem('apv_pending_syncs', JSON.stringify(pending));
+        }
+
+        function processPendingSyncs() {
+            if (!GOOGLE_SCRIPT_URL || !navigator.onLine) return;
+            let pending = JSON.parse(localStorage.getItem('apv_pending_syncs') || '[]');
+            if (pending.length === 0) return;
+
+            const toSend = [...pending];
+            localStorage.setItem('apv_pending_syncs', '[]'); // Limpa a fila antes do envio para evitar duplicatas
+
+            sendNextSync(toSend);
+        }
+
+        function sendNextSync(queue) {
+            if (queue.length === 0) return;
+            const payload = queue.shift();
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                sendNextSync(queue);
+            }).catch(err => {
+                console.error('Erro na fila de sincronização:', err);
+                // Retorna para a fila caso falhe
+                let pending = JSON.parse(localStorage.getItem('apv_pending_syncs') || '[]');
+                pending.unshift(payload);
+                localStorage.setItem('apv_pending_syncs', JSON.stringify(pending));
+            });
         }
 
         function updateTimeBreakdown() {
@@ -912,6 +1032,9 @@
             }
             localStorage.setItem('apv_devotional_log', JSON.stringify(logs));
             renderLogs();
+
+            // Sincroniza silenciosamente para o Google Sheets
+            syncActivity(dayNumber, action);
         }
 
         function renderLogs() {
@@ -1289,5 +1412,17 @@
 
         window.onload = initApp;
     </script>
+    
+    <!-- Name Modal -->
+    <div id="name-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 border border-slate-100 transform scale-95 transition-all duration-300">
+            <h3 class="text-xl font-bold text-slate-800 font-serif mb-2">Bem-vindo à Jornada</h3>
+            <p class="text-slate-600 text-sm mb-4">Para começarmos a registrar seu progresso na devocional, por favor informe seu nome:</p>
+            <input type="text" id="modal-name-input" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-base font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#C86240] mb-4" placeholder="Digite seu nome completo...">
+            <button onclick="submitModalName()" class="w-full bg-[#C86240] hover:bg-[#B35232] text-white font-bold py-3 px-4 rounded-lg transition-colors shadow">
+                Iniciar Jornada
+            </button>
+        </div>
+    </div>
 </body>
 </html>
