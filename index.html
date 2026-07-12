@@ -397,23 +397,14 @@
         }
 
         function handleLogout() {
-            if (confirm("Deseja sair da sua conta? Seu progresso continuará salvo neste navegador.")) {
-                window.localStorage.removeItem('cld_logged_in_user');
-                window.location.hash = ''; // Limpa o hash do dia aberto
-                
-                // Exibe a tela de login
-                const loginOverlay = document.getElementById('login-overlay');
-                if (loginOverlay) {
-                    loginOverlay.classList.remove('hidden');
-                }
-                
-                // Reseta a senha digitada
-                const passwordInput = document.getElementById('login-password-input');
-                if (passwordInput) passwordInput.value = '';
-                
-                // Fecha o leitor e reseta os painéis
-                closeReader();
-            }
+            // Remove a chave de login diretamente (sem confirm para evitar bloqueios de popups)
+            window.localStorage.removeItem('cld_logged_in_user');
+            
+            // Limpa o hash de navegação para recarregar na raiz da página
+            window.location.hash = '';
+            
+            // Força a recarga limpa do aplicativo
+            window.location.reload();
         }
 
         function syncActivity(dayNumber, action) {
