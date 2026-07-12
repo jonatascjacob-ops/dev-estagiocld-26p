@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jornada de Alinhamento e Restauração</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 250px;
+            max-height: 300px;
+        }
+        @media (min-width: 768px) { .chart-container { height: 300px; } }
+        
+        body {
+            background-color: #FAF8F5; 
+            color: #1E2D3D;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .checkbox-custom {
+            appearance: none;
+            width: 1.5rem;
+            height: 1.5rem;
+            border: 2px solid #C86240;
+            border-radius: 0.25rem;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+            background-color: white;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .checkbox-custom:checked {
+            background-color: #C86240;
+            border-color: #C86240;
+        }
+        .checkbox-custom:checked::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body class="antialiased pb-24">
+
+<!-- Chosen Palette: Warm Neutrals (Deep Navy #1E2D3D, Terracota #C86240, Mustard #DCA134, Warm Sand #FAF8F5) -->
+<!-- Application Structure Plan: O aplicativo foi adaptado para cobrir exatamente 28 dias sequenciais, do dia 13/07/2026 até 09/08/2026. A arquitetura de navegação foi otimizada para acomodar esse fluxo estendido: 1. Seção de Dinâmica de Tempo (Doughnut Chart): Ensina graficamente como dividir os 30 minutos diários de estudo ativo. 2. Dashboard de Progresso Geral: Apresenta estatísticas instantâneas de conclusão das devocionais em localStorage baseadas no novo limite de 28 dias. 3. Cronograma Semanal de Estudos: Organiza as 4 semanas completas (7 dias cada) de forma visualmente agrupada com datas reais correspondentes. 4. Painel de Leitura Imersiva (MEB): Interface focada em estudo ativo livre de distrações, com barra de navegação, texto bíblico destacado, frase-chave explicativa e o método de perguntas (Observação, Interpretação e Aplicação Prática) ajustados às novas datas. 5. Menu Lateral Deslizante (Drawer): Facilita o salto rápido entre quaisquer dias de estudo a qualquer momento. -->
+<!-- Visualization & Content Choices: 1. Doughnut Chart (Chart.js): Escolhido para ilustrar a dinâmica temporal de 30 minutos (Preparação, Meditação, Resposta) pois representa proporções de forma circular intuitiva. 2. Grid de Cards Cronológicos: Substitui listas longas por cards agrupados por semana temática com cores de identificação exclusivas e indicação clara de datas (13/07 a 09/08). 3. Sistema Dinâmico de Checkboxes: Atualiza de forma reativa o progresso geral sem poluição de tela. 4. Navegadores Direcionais: Permite leitura contínua (Anterior/Próximo) no painel de leitura ativo. -->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/50 z-40 hidden transition-opacity duration-300 opacity-0" onclick="toggleDrawer(false)"></div>
+        
+    <div id="sidebar-drawer" class="fixed top-0 left-0 w-80 h-full bg-white shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-r border-slate-200">
+        <div class="p-4 bg-[#1E2D3D] text-white flex justify-between items-center">
+            <div>
+                <h3 class="font-bold text-lg">Menu da Jornada</h3>
+                <span class="text-xs text-white/60">Selecione um dia de estudo</span>
+            </div>
+            <button onclick="toggleDrawer(false)" class="text-white/80 hover:text-white text-xl font-bold p-1">✕</button>
+        </div>
+        <div class="flex-grow overflow-y-auto p-4 bg-slate-50">
+            <div id="drawer-content" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <header class="bg-[#1E2D3D] text-white p-6 shadow-md text-center">
+        <h1 class="text-3xl font-bold tracking-tight font-serif">Jornada de Alinhamento e Restauração</h1>
+        <p class="text-[#DCA134] mt-2 text-sm uppercase tracking-widest font-medium">Curso de Liderança e Discipulado (CLD Atibaia)</p>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+        
+        <details id="dynamics-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group transition-all duration-300">
+            <summary class="p-5 font-bold text-lg md:text-xl text-[#1E2D3D] cursor-pointer flex justify-between items-center select-none list-none">
+                <div class="flex items-center gap-3">
+                    <span>🧭</span>
+                    <span>Como funciona a dinâmica de 30 minutos?</span>
+                </div>
+                <span class="text-[#C86240] text-sm font-semibold group-open:hidden">Como usar este guia ➔</span>
+                <span class="text-slate-500 text-sm font-semibold hidden group-open:inline">Recolher ✖</span>
+            </summary>
+            
+            <div class="p-6 border-t border-slate-100 bg-[#FAF8F5]/50 flex flex-col md:flex-row items-center gap-8">
+                <div class="w-full md:w-1/2">
+                    <div class="chart-container">
+                        <canvas id="timeChart"></canvas>
+                    </div>
+                </div>
+                <div class="w-full md:w-1/2 space-y-4">
+                    <div class="flex items-start gap-3">
+                        <span class="text-2xl">🙏</span>
+                        <div>
+                            <h3 class="font-bold text-[#1E2D3D]">1. Preparação (5 min)</h3>
+                            <p class="text-sm text-slate-600">Acalme seu coração em oração silenciosa e leia o versículo proposto para o dia.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-2xl">📖</span>
+                        <div>
+                            <h3 class="font-bold text-[#1E2D3D]">2. Meditação & MEB (15 min)</h3>
+                            <p class="text-sm text-slate-600">Escreva em seu caderno as respostas reflexivas das perguntas de Observação e Interpretação.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-2xl">🏃</span>
+                        <div>
+                            <h3 class="font-bold text-[#1E2D3D]">3. Resposta Prática (10 min)</h3>
+                            <p class="text-sm text-slate-600">Trace uma aplicação tangível para aplicar hoje mesmo e termine em oração de entrega.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <section id="dashboard-section" class="bg-white rounded-xl shadow-sm p-5 border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h3 class="font-bold text-slate-800 text-base md:text-lg">Progresso da Jornada (13/07 a 09/08)</h3>
+                <p class="text-slate-500 text-xs md:text-sm">Complete os 28 dias de estudo de forma constante e sincera.</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="bg-[#FAF8F5] border border-slate-200 rounded-lg px-4 py-2 text-center shadow-inner">
+                    <span id="progress-percentage" class="text-2xl font-black text-[#C86240]">0%</span>
+                    <span class="block text-[10px] text-slate-500 font-bold uppercase tracking-wider">Concluído</span>
+                </div>
+                <div class="text-left">
+                    <span id="progress-counts" class="text-sm font-bold text-slate-700">0 lidos</span>
+                    <button onclick="resetProgress()" class="block text-[10px] text-red-500 hover:text-red-700 underline font-semibold mt-1">Limpar Progresso</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="calendar-section" class="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-800 mb-2 font-serif">Cronograma de Estudos</h2>
+            <p class="text-slate-600 mb-6 leading-relaxed text-sm md:text-base">
+                Selecione abaixo um dos dias para iniciar sua reflexão guiada de hoje.
+            </p>
+            <div id="calendar-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+        </section>
+
+        <section id="reader-section" class="hidden bg-white rounded-xl shadow-lg border-t-4 border-[#C86240] p-6 md:p-8 mt-8 scroll-mt-6">
+            
+            <div class="mb-6 pb-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Modo de Estudo Ativo</span>
+                
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="closeReader()" class="inline-flex items-center gap-2 bg-[#1E2D3D] hover:bg-slate-800 text-white text-xs md:text-sm font-bold py-2 px-4 rounded-full shadow-sm transition-all">
+                        <span>🏠</span> <span>Painel</span>
+                    </button>
+                    <button onclick="openTodayDevotional()" class="inline-flex items-center gap-2 bg-[#DCA134] hover:bg-[#C99026] text-white text-xs md:text-sm font-bold py-2 px-4 rounded-full shadow-sm transition-all">
+                        <span>⚡</span> <span>Hoje</span>
+                    </button>
+                    <button onclick="toggleDrawer(true)" class="inline-flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs md:text-sm font-bold py-2 px-4 rounded-full shadow-sm transition-all">
+                        <span>📅</span> <span>Ver Outros</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-4 mb-6">
+                <div>
+                    <span id="read-period" class="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider mb-2 inline-block"></span>
+                    <h2 id="read-title" class="text-3xl font-extrabold text-[#1E2D3D] flex items-center gap-2 font-serif"></h2>
+                    <p id="read-date" class="text-slate-500 text-sm font-medium mt-1"></p>
+                </div>
+                <div class="mt-4 md:mt-0 flex flex-col items-start md:items-end gap-2">
+                    <div id="read-verse" class="text-lg font-bold text-[#C86240] bg-[#C86240]/5 px-3 py-1 rounded"></div>
+                    <button id="mark-read-btn" class="text-xs font-bold px-3 py-1 rounded-full border border-slate-300 hover:bg-slate-50 transition-colors shadow-sm"></button>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border-l-4 border-[#1E2D3D] p-5 md:p-6 rounded-r-xl shadow-sm mb-6">
+                <span class="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-2">Escrituras</span>
+                <p id="read-verse-text" class="text-slate-800 text-base md:text-lg italic font-medium leading-relaxed font-serif"></p>
+                <div class="text-right mt-3">
+                    <span id="bible-version-label" class="text-[10px] bg-slate-200 text-slate-500 font-bold px-2 py-0.5 rounded">Almeida Revista e Atualizada (ARA)</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="col-span-1 md:col-span-2 space-y-4">
+                    <div class="bg-amber-50 border-l-4 border-[#DCA134] p-4 rounded-r">
+                        <span class="block text-[9px] text-[#C99026] font-extrabold uppercase tracking-widest mb-1">Ideia Central do Dia</span>
+                        <p id="read-phrase" class="text-base italic font-medium text-amber-900 font-serif"></p>
+                    </div>
+                    <div class="flex gap-4 text-sm">
+                        <div class="bg-slate-50 p-3 rounded flex-1 border border-slate-100">
+                            <span class="block text-slate-400 text-[10px] uppercase font-bold mb-1">Pilar Temático</span>
+                            <span id="read-stage" class="font-semibold text-[#1E2D3D]"></span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded flex-1 border border-slate-100">
+                            <span class="block text-slate-400 text-[10px] uppercase font-bold mb-1">Foco Prático</span>
+                            <span id="read-focus" class="font-semibold text-[#1E2D3D]"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-xl font-bold text-[#1E2D3D] mb-4 border-b pb-2 flex items-center gap-2 font-serif"><span>📚</span> Perguntas para Estudo Ativo</h3>
+            <div class="space-y-6 mb-10">
+                <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:shadow transition">
+                    <h4 class="text-[#C86240] font-bold mb-2 flex items-center gap-2 text-lg"><span>🔍</span> 1. Observação</h4>
+                    <p id="read-obs" class="text-slate-700 leading-relaxed text-sm md:text-base"></p>
+                </div>
+                <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:shadow transition">
+                    <h4 class="text-[#C86240] font-bold mb-2 flex items-center gap-2 text-lg"><span>💡</span> 2. Interpretação</h4>
+                    <p id="read-int" class="text-slate-700 leading-relaxed text-sm md:text-base"></p>
+                </div>
+                <div class="bg-[#FAF8F5] p-6 rounded-lg border border-slate-200 shadow-inner">
+                    <h4 class="text-[#1E2D3D] font-bold mb-3 flex items-center gap-2 text-xl font-serif"><span>🏃</span> 3. Aplicação Prática</h4>
+                    <p id="read-app" class="text-[#1E2D3D] font-medium leading-relaxed text-sm md:text-base italic"></p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6 flex justify-between items-center gap-2">
+                <button id="nav-prev-btn" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold py-2 px-4 rounded-lg shadow-sm flex items-center gap-2 transition">
+                    <span>←</span> <span class="hidden sm:inline">Anterior</span>
+                </button>
+                <button id="nav-up-btn" class="bg-[#1E2D3D] hover:bg-slate-800 text-white font-semibold py-2 px-4 rounded-lg shadow-sm flex items-center gap-2 transition">
+                    <span>↑</span> <span class="hidden sm:inline">Menu Inicial</span>
+                </button>
+                <button id="nav-next-btn" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold py-2 px-4 rounded-lg shadow-sm flex items-center gap-2 transition">
+                    <span class="hidden sm:inline">Próximo</span> <span>→</span>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-[#1E2D3D] text-white/60 text-center py-6 text-sm mt-12">
+        <p>© 2026 CLD Atibaia. Ministérios Palavra da Vida.</p>
+        <p class="text-xs text-white/40 mt-1">"A obediência é melhor do que o sacrifício."</p>
+    </footer>
+
+    <script>
+        const devotionals = [
+            // SEMANA 1 (13/07 a 19/07)
+            {
+                day: 1, 
+                date: "Segunda, 13/07/2026", 
+                title: "O Guarda-Chuva de Proteção de Deus", 
+                icon: "🛡️", 
+                verse: "Romanos 13:1-2", 
+                verseText: "Toda alma esteja sujeita às autoridades superiores; porque não há autoridade que não venha de Deus; e as autoridades que há foram ordenadas por Deus. De modo que quem se opõe à autoridade resiste à ordenação de Deus; e os que resistem trarão sobre si mesmos a condenação.", 
+                phrase: "As regras de Deus visam nossa proteção, não nossa privação.", 
+                stage: "Submissão", 
+                focus: "Reconhecer a autoridade como proteção", 
+                period: "Semana 1: Autoridade e Submissão", 
+                periodDates: "13/07 a 19/07", 
+                periodIcon: "🛡️", 
+                periodColor: "bg-[#F2EFE9]", 
+                meb: {
+                    obs: "O que o texto ensina sobre a origem de toda autoridade humana e as consequências de resistir a elas?",
+                    int: "Como as diretrizes e regras de convivência do CLD refletem esse princípio divino de ordem e proteção?",
+                    app: "De que forma você tem enxergado as regras de relacionamento recentemente? Como um limite que te prende ou como uma proteção divina?"
+                }
+            },
+            {
+                day: 2, 
+                date: "Terça, 14/07/2026", 
+                title: "Pastores que Cuidam da Nossa Alma", 
+                icon: "🐑", 
+                verse: "Hebreus 13:17", 
+                verseText: "Obedecei a vossos guias e sede submissos para com eles; pois velam por vossa alma, como quem deve prestar contas, para que façam isto com alegria e não gemendo; porque isto não vos seria útil.", 
+                phrase: "A submissão alegre traz leveza tanto para quem lidera quanto para quem é liderado.", 
+                stage: "Submissão", 
+                focus: "Valorizar o pastoreio espiritual", 
+                period: "Semana 1: Autoridade e Submissão", 
+                periodDates: "13/07 a 19/07", 
+                periodIcon: "🛡️", 
+                periodColor: "bg-[#F2EFE9]", 
+                meb: {
+                    obs: "Qual é a responsabilidade dos guias espirituais perante Deus e como a atitude do liderado afeta esse ministério?",
+                    int: "O que o texto nos ensina sobre a utilidade espiritual de cooperarmos com a disciplina e orientações da liderança?",
+                    app: "Como a sua disposição prática em ouvir seu discipulador tem facilitado o trabalho dele? Que ajustes de atitude precisa fazer hoje?"
+                }
+            },
+            {
+                day: 3, 
+                date: "Quarta, 15/07/2026", 
+                title: "Para Quem Você Está Vivendo?", 
+                icon: "🎯", 
+                verse: "Gálatas 1:10", 
+                verseText: "Acaso busco eu agora o favor dos homens ou o de Deus? Ou procuro agradar a homens? Se agradasse ainda a homens, não seria servo de Cristo.", 
+                phrase: "A necessidade de aplauso humano é a raiz da hipocrisia espiritual.", 
+                stage: "Submissão", 
+                focus: "Desarmar a aprovação humana", 
+                period: "Semana 1: Autoridade e Submissão", 
+                periodDates: "13/07 a 19/07", 
+                periodIcon: "🛡️", 
+                periodColor: "bg-[#F2EFE9]", 
+                meb: {
+                    obs: "Qual contraste nítido o apóstolo Paulo estabelece entre buscar o favor de homens e ser um verdadeiro servo de Cristo?",
+                    int: "Por que as pessoas que têm um coração dócil ou cooperador são frequentemente tentadas a agradar líderes apenas externamente?",
+                    app: "Ao cumprir as obrigações da disciplina, você está buscando alinhar seu coração com Deus ou apenas limpar sua reputação com os líderes?"
+                }
+            },
+            {
+                day: 4, 
+                date: "Quinta, 16/07/2026", 
+                title: "O Perigo do Legalismo e da Autocondenação", 
+                icon: "🕊️", 
+                verse: "Romanos 8:1-2", 
+                verseText: "Agora, pois, nenhuma condenação há para os que estão em Cristo Jesus, que não andam segundo a carne, mas segundo o Espírito. Porque a lei do Espírito de vida, em Cristo Jesus, me livrou da lei do pecado e da morte.", 
+                phrase: "A disciplina bíblica não é uma punição judicial, mas uma restauração paternal.", 
+                stage: "Graça", 
+                focus: "Combater a condenação legalista", 
+                period: "Semana 1: Autoridade e Submissão", 
+                periodDates: "13/07 a 19/07", 
+                periodIcon: "🛡️", 
+                periodColor: "bg-[#F2EFE9]", 
+                meb: {
+                    obs: "Qual o fundamento da nossa libertação da lei do pecado e da morte segundo as palavras de Paulo?",
+                    int: "Como o entendimento do perdão completo de Cristo na cruz liberta você de obedecer por mera vergonha ou medo de rejeição?",
+                    app: "Você tem se punido internamente com sentimentos de incapacidade e vergonha desde o ocorrido? Como a cruz de Cristo responde a essa autocondenação?"
+                }
+            },
+            {
+                day: 5, 
+                date: "Sexta, 17/07/2026", 
+                title: "Sinceridade Diante do Espelho de Deus", 
+                icon: "🔍", 
+                verse: "Salmo 139:23-24", 
+                verseText: "Sonda-me, ó Deus, e conhece o meu coração; prova-me, e conhece os meus pensamentos. E vê se há em mim algum caminho mau, e guia-me pelo caminho eterno.", 
+                phrase: "Caminhar na verdade exige a coragem de expor nosso coração ao escrutínio da graça.", 
+                stage: "Submissão", 
+                focus: "Cultivar transparência absoluta", 
+                period: "Semana 1: Autoridade e Submissão", 
+                periodDates: "13/07 a 19/07", 
+                periodIcon: "🛡️", 
+                periodColor: "bg-[#F2EFE9]", 
+                meb: {
+                    obs: "O que o salmista pede que Deus examine em seu íntimo e qual é o destino final desse processo?",
+                    int: "Por que tentar esconder fragmentos das nossas conversas ou intenções da liderança é, no fundo, uma ilusão diante do Deus que tudo vê?",
+                    app: "Você foi 100% sincero e transparente em suas confissões aos líderes ou guardou algum detalhe por medo de reprovação? O que precisa ser trazido à luz hoje?"
+                }
+            },
+            {
+                day: 6, 
+                date: "Sábado, 18/07/2026", 
+                title: "Submissão Ativa e Silenciosa", 
+                icon: "🤫", 
+                verse: "1 Pedro 2:13-15", 
+                verseText: "Sujeitai-vos a toda instituição humana por causa do Senhor, quer seja ao rei, como soberano, quer às autoridades, como enviadas por ele, tanto para castigo dos malfeitores como para louvor dos que praticam o bem.", 
+                phrase: "A submissão autêntica brilha quando silenciamos nossa própria vontade para honrar o Senhor.", 
+                stage: "Submissão", 
+                focus: "Obedecer mesmo sem concordar de imediato", 
+                period: "Semana 1: Autoridade e Submissão", 
+                periodDates: "13/07 a 19/07", 
+                periodIcon: "🛡️", 
+                periodColor: "bg-[#F2EFE9]", 
+                meb: {
+                    obs: "O que Pedro coloca como motivação definitiva para nos sujeitarmos às autoridades e regulamentos humanos?",
+                    int: "Como a obediência a regulamentos institucionais (como a pausa afetiva do CLD) testemunha de nossa fé perante as pessoas?",
+                    app: "Existe alguma instrução ou regra com a qual você discordou recentemente? Como você pode moldar sua conduta para cumpri-la de coração hoje?"
+                }
+            },
+            {
+                day: 7, 
+                date: "Domingo, 19/07/2026", 
+                title: "O Coração Ensinável e Maleável", 
+                icon: "🌿", 
+                verse: "Provérbios 15:31-32", 
+                verseText: "Os ouvidos que atendem à repreensão salutar no meio dos sábios terão a sua morada. O que rejeita a disciplina menospreza a sua própria alma, mas o que atenta para a admoestação adquire entendimento.", 
+                phrase: "A disciplina não diminui quem você é, ela apenas revela onde você pode crescer.", 
+                stage: "Submissão", 
+                focus: "Cultivar a docilidade diante da instrução", 
+                period: "Semana 1: Autoridade e Submissão", 
+                periodDates: "13/07 a 19/07", 
+                periodIcon: "🛡️", 
+                periodColor: "bg-[#F2EFE9]", 
+                meb: {
+                    obs: "Qual o contraste entre a atitude daquele que rejeita a disciplina e daquele que adquire entendimento segundo Provérbios?",
+                    int: "Por que receber a exortação com mansidão e sem atitudes defensivas acelera nossa cura espiritual e amadurecimento?",
+                    app: "Como você se sente quando seus pontos fracos são expostos? Peça a Deus um coração ensinável para esta semana."
+                }
+            },
+            // SEMANA 2 (20/07 a 26/07)
+            {
+                day: 8, 
+                date: "Segunda, 20/07/2026", 
+                title: "O Trono de Deus e os Meus Planos", 
+                icon: "👑", 
+                verse: "Salmo 115:3 / Provérbios 19:21", 
+                verseText: "O nosso Deus está nos céus; faz tudo o que lhe apraz. Muitos são os planos no coração do homem, mas o desígnio do Senhor prevalecerá.", 
+                phrase: "A soberania de Deus é o ancoradouro seguro quando nossos planos terrenos falham.", 
+                stage: "Soberania", 
+                focus: "Render o controle futuro", 
+                period: "Semana 2: Soberania e Espera", 
+                periodDates: "20/07 a 26/07", 
+                periodIcon: "⚓", 
+                periodColor: "bg-[#EFECE6]", 
+                meb: {
+                    obs: "Qual contraste o texto estabelece entre os múltiplos pensamentos do ser humano e a firmeza dos decretos divinos?",
+                    int: "De que forma tentar apressar ou forçar uma relação amorosa no tempo errado revela uma desconfiança de que o trono de Deus é soberano e bom?",
+                    app: "No fundo, você sente medo de que a obediência atual te faça perder a chance de estar com a pessoa que você gosta? Como a soberania divina apazigua essa ansiedade?"
+                }
+            },
+            {
+                day: 9, 
+                date: "Terça, 21/07/2026", 
+                title: "Descansando no 'Espere' de Deus", 
+                icon: "⚓", 
+                verse: "Provérbios 16:9 / Salmo 139:16", 
+                verseText: "O coração do homem traça o seu caminho, mas o Senhor lhe dirige os passos. Os teus olhos viram a minha substância ainda informe, e no teu livro foram escritos todos os meus dias, cada um deles determinado, quando nenhum deles ainda havia.", 
+                phrase: "A pausa na nossa história não é um tempo de abandono, mas de preparação soberana.", 
+                stage: "Soberania", 
+                focus: "Aceitar a estação de preparação", 
+                period: "Semana 2: Soberania e Espera", 
+                periodDates: "20/07 a 26/07", 
+                periodIcon: "⚓", 
+                periodColor: "bg-[#EFECE6]", 
+                meb: {
+                    obs: "De acordo com as passagens lidas, quem é o responsável final pelo direcionamento e pela determinação cronológica de nossa vida?",
+                    int: "Como entender que este tempo de disciplina e restrição amorosa já estava previsto no livro de Deus conforta você contra o sentimento de frustração?",
+                    app: "De que maneira você pode demonstrar descanso prático hoje em vez de tentar controlar o desfecho da situação?"
+                }
+            },
+            {
+                day: 10, 
+                date: "Quarta, 22/07/2026", 
+                title: "O Perigo de 'Dar uma Ajudinha' a Deus", 
+                icon: "⚠️", 
+                verse: "Gênesis 16:1-3", 
+                verseText: "Ora, Sarai, mulher de Abrão, não lhe dava filhos; e tinha uma serva egípcia, cujo nome era Agar. Disse Sarai a Abrão: Eis que o Senhor me impediu de parir; toma, pois, a minha serva; porventura terei filhos por meio dela. E ouviu Abrão a voz de Sarai.", 
+                phrase: "Métodos humanos para obter promessas divinas sempre geram frutos dolorosos.", 
+                stage: "Soberania", 
+                focus: "Evitar a auto-resolução ansiosa", 
+                period: "Semana 2: Soberania e Espera", 
+                periodDates: "20/07 a 26/07", 
+                periodIcon: "⚓", 
+                periodColor: "bg-[#EFECE6]", 
+                meb: {
+                    obs: "O que motivou a decisão de Sarai e a concordância de Abrão de gerar um filho com Agar? Qual foi o agente ignorado nessa decisão?",
+                    int: "Como a nossa pressa afetiva nos impulsiona a ignorar os limites (como as regras do CLD) na tentativa de realizar nossos próprios anseios?",
+                    app: "A sua decisão de se declarar para a moça foi uma tentativa impaciente de dar uma 'ajudinha' a Deus? Quais são os riscos de insistir nesse caminho?"
+                }
+            },
+            {
+                day: 11, 
+                date: "Quinta, 23/07/2026", 
+                title: "Deus Cuida do Coração Dela e do Seu", 
+                icon: "💧", 
+                verse: "Salmo 33:11 / Provérbios 21:1", 
+                verseText: "O conselho do Senhor dura para sempre; os desígnios do seu coração, por todas as gerações. Como ribeiros de águas assim é o coração do rei na mão do Senhor; este o dirige para onde quer.", 
+                phrase: "A soberania de Deus protege os afetos que nós não podemos (e não devemos) controlar.", 
+                stage: "Soberania", 
+                focus: "Descansar o coração do outro", 
+                period: "Semana 2: Soberania e Espera", 
+                periodDates: "20/07 a 26/07", 
+                periodIcon: "⚓", 
+                periodColor: "bg-[#EFECE6]", 
+                meb: {
+                    obs: "A que o escritor de Provérbios compara o coração do rei nas mãos de Deus e como isso ilustra o poder divino?",
+                    int: "Por que você não precisa utilizar de conversas escondidas, proximidades indevidas ou manipulação afetiva para assegurar o amanhã?",
+                    app: "Você realmente confia que Deus é soberano para guardar os sentimentos e os caminhos dela, mesmo sem qualquer intervenção sua neste semestre?"
+                }
+            },
+            {
+                day: 12, 
+                date: "Sexta, 24/07/2026", 
+                title: "A Bênção da Espera Ativa", 
+                icon: "🏃", 
+                verse: "Salmo 27:14 / Salmo 37:3-5", 
+                verseText: "Espera pelo Senhor, tem bom ânimo, e fortifique-se o teu coração; espera, pois, pelo Senhor. Confia no Senhor e faz o bem; habita na terra e alimenta-te da verdade. Deleita-te também no Senhor, e ele te concederá os desejos do teu coração...", 
+                phrase: "Esperar em Deus não é cruzar os braços; é caminhar com dedicação nos deveres de hoje.", 
+                stage: "Soberania", 
+                focus: "Focar nas obrigações diárias", 
+                period: "Semana 2: Soberania e Espera", 
+                periodDates: "20/07 a 26/07", 
+                periodIcon: "⚓", 
+                periodColor: "bg-[#EFECE6]", 
+                meb: {
+                    obs: "Quais imperativos práticos e ativos o Salmo 37 associa à promessa de que Deus concederá os desejos do nosso coração?",
+                    int: "Como o ativismo acadêmico e ministerial no CLD servem como remédio para acalmar a mente distraída com romance?",
+                    app: "Como você pode estruturar sua rotina hoje para que seu foco esteja 100% no estudo e no serviço, descansando seu futuro no Senhor?"
+                }
+            },
+            {
+                day: 13, 
+                date: "Sábado, 25/07/2026", 
+                title: "Esperar é Confiar e Caminhar", 
+                icon: "👣", 
+                verse: "Isaías 40:29-31", 
+                verseText: "Faz forte ao cansado e multiplica as forças ao que não tem nenhum vigor... mas os que esperam no Senhor renovarão as suas forças, subirão com asas como águias, correrão e não se cansarão, caminharão e não se fatigarão.", 
+                phrase: "Nossa alma se renova no silêncio da esperança em Deus.", 
+                stage: "Soberania", 
+                focus: "Encontrar vigor no silêncio da espera", 
+                period: "Semana 2: Soberania e Espera", 
+                periodDates: "20/07 a 26/07", 
+                periodIcon: "⚓", 
+                periodColor: "bg-[#EFECE6]", 
+                meb: {
+                    obs: "O que acontece com as forças físicas e espirituais daqueles que esperam e confiam no tempo do Senhor?",
+                    int: "Por que a impaciência tende a desgastar nossa saúde espiritual, nos deixando secos e irritadiços?",
+                    app: "De que maneira você tem buscado renovar suas energias afetivas? Buscando soluções rápidas ou descansando na fonte?"
+                }
+            },
+            {
+                day: 14, 
+                date: "Domingo, 26/07/2026", 
+                title: "Deus Sabe o que Precisamos", 
+                icon: "🕊️", 
+                verse: "Mateus 6:31-33", 
+                verseText: "Portanto, não vos inquieteis, dizendo: Que comeremos? Que beberemos? Ou com que nos vestiremos?... porque vosso Pai celeste sabe que necessitais de todas estas coisas; mas buscai primeiro o seu reino e a sua justiça, e todas estas coisas vos serão acrescentadas.", 
+                phrase: "Deus não ignora suas necessidades emocionais; Ele as atende de modo perfeito na hora certa.", 
+                stage: "Soberania", 
+                focus: "Submeter carências de afeição ao cuidado de Deus", 
+                period: "Semana 2: Soberania e Espera", 
+                periodDates: "20/07 a 26/07", 
+                periodIcon: "⚓", 
+                periodColor: "bg-[#EFECE6]", 
+                meb: {
+                    obs: "Que garantia fundamental de provisão e conhecimento Jesus oferece àqueles que não se desesperam com o amanhã?",
+                    int: "Como a carência e o medo da solidão nos levam a forçar relacionamentos antes que tenhamos estrutura espiritual para mantê-los?",
+                    app: "Escreva uma declaração simples no caderno entregando sua carência afetiva nas mãos dAquele que conhece sua real necessidade."
+                }
+            },
+            // SEMANA 3 (27/07 a 02/08)
+            {
+                day: 15, 
+                date: "Segunda, 27/07/2026", 
+                title: "O Perigo de Seguir os Nossos Impulsos", 
+                icon: "💥", 
+                verse: "Jeremias 17:9-10", 
+                verseText: "Enganoso é o coração, mais do que todas as coisas, e desesperadamente corrupto; quem o conhecerá? Eu, o Senhor, esquadrinho o coração, eu provo os pensamentos; e isto para dar a cada um segundo o seu caminho, segundo o fruto das suas ações.", 
+                phrase: "Nossos sentimentos são ótimos sinalizadores, mas péssimos guias.", 
+                stage: "Domínio Próprio", 
+                focus: "Desconfiar do coração emocional", 
+                period: "Semana 3: Guarda da Mente e Amor", 
+                periodDates: "27/07 a 02/08", 
+                periodIcon: "🧠", 
+                periodColor: "bg-[#FAF2EE]", 
+                meb: {
+                    obs: "Qual diagnóstico categórico a Palavra de Deus oferece sobre o estado natural do coração humano?",
+                    int: "De que forma as suas emoções te enganaram nas semanas passadas, disfarçando de 'direção divina' o que na verdade era apenas carência afetiva?",
+                    app: "Quais mentiras internas você tem alimentado para legitimar sentimentos que no momento estão fora do padrão e das regras estabelecidas?"
+                }
+            },
+            {
+                day: 16, 
+                date: "Terça, 28/07/2026", 
+                title: "Guardando o Manancial da Vida", 
+                icon: "🧠", 
+                verse: "Provérbios 4:23 / 2 Coríntios 10:4-5", 
+                verseText: "Sobre tudo o que se deve guardar, guarda o teu coração, porque dele procedem as fontes da vida. Porque as armas da nossa milícia não são carnais, mas sim poderosas em Deus... destruindo os conselhos, e toda a altiveza... e levando cativo todo o pensamento...", 
+                phrase: "Quem não estabelece sentinelas na mente torna-se refém de suas próprias fantasias.", 
+                stage: "Domínio Próprio", 
+                focus: "Filtrar pensamentos e diálogos internos", 
+                period: "Semana 3: Guarda da Mente e Amor", 
+                periodDates: "27/07 a 02/08", 
+                periodIcon: "🧠", 
+                periodColor: "bg-[#FAF2EE]", 
+                meb: {
+                    obs: "O que o texto afirma que deve ser feito com os nossos pensamentos e imaginação de modo a submetê-los ao controle de Cristo?",
+                    int: "Como as 'fantasias românticas' e as conversas mentais imaginárias com a moça têm sabotado sua busca por pureza e foco no curso?",
+                    app: "Quais atitudes práticas você vai tomar imediatamente ao perceber que sua mente começou a derivar para pensamentos românticos fora de hora?"
+                }
+            },
+            {
+                day: 17, 
+                date: "Quarta, 29/07/2026", 
+                title: "O Amor não Procura seus Interesses", 
+                icon: "🎁", 
+                verse: "1 Coríntios 13:4-7", 
+                verseText: "O amor é paciente, é benigno; o amor não arde em ciúmes, não se ufana, não se ensoberbece, não se conduz inconvenientemente, não procura os seus interesses, não se exaspera, não se alegra com a injustiça, mas regozija-se com a verdade...", 
+                phrase: "Amor verdadeiro edifica e protege; a cobiça romântica exige e apressa.", 
+                stage: "Domínio Próprio", 
+                focus: "Avaliar o egoísmo oculto no romance", 
+                period: "Semana 3: Guarda da Mente e Amor", 
+                periodDates: "27/07 a 02/08", 
+                periodIcon: "🧠", 
+                periodColor: "bg-[#FAF2EE]", 
+                meb: {
+                    obs: "Quais são as características fundamentais do amor ágape descritas por Paulo em contraste com o egoísmo?",
+                    int: "Sua decisão de se abrir sabendo das restrições e das demandas emocionais dela foi um ato focado no crescimento espiritual dela ou na sua carência?",
+                    app: "De que maneira você pode amar a moça de forma sacrificial hoje através da renúncia e do silêncio obediente?"
+                }
+            },
+            {
+                day: 18, 
+                date: "Quinta, 30/07/2026", 
+                title: "O Cuidado em não Fraudar o Irmão", 
+                icon: "🕊️", 
+                verse: "1 Tessalonicenses 4:3-8", 
+                verseText: "Porque esta é a vontade de Deus, a vossa santificação... que ninguém oprima ou defraude a seu irmão nesta matéria; porque o Senhor é vingador de todas estas coisas... Porque não nos chamou Deus para a imundícia, mas para a santificação.", 
+                phrase: "Despertar expectativas afetivas que você não pode assumir plenamente hoje é uma fraude espiritual.", 
+                stage: "Domínio Próprio", 
+                focus: "Preservar a pureza emocional do outro", 
+                period: "Semana 3: Guarda da Mente e Amor", 
+                periodDates: "27/07 a 02/08", 
+                periodIcon: "🧠", 
+                periodColor: "bg-[#FAF2EE]", 
+                meb: {
+                    obs: "De acordo com o apóstolo, qual é o apelo de Deus para os relacionamentos interpessoais e qual a consequência de defraudar um irmão?",
+                    int: "Como quebrar as regras de relacionamento para alimentar uma proximidade expôs a moça ao prejuízo espiritual e à disciplina?",
+                    app: "Você consegue pedir perdão a Deus com sinceridade por ter envolvido a moça em uma situação que prejudicou o foco dela em Atibaia?"
+                }
+            },
+            {
+                day: 19, 
+                date: "Sexta, 31/07/2026", 
+                title: "Pureza e o Alvo Supremo", 
+                icon: "🕊️", 
+                verse: "1 Timóteo 5:1-2 / Mateus 6:33", 
+                verseText: "Não repreendas asperamente ao velho... mas exorta... aos moços, como a irmãos... às mulheres idosas, como a mães; às moças, como a irmãs, com toda a pureza. Mas, buscai primeiro o reino de Deus, e a sua justiça, e todas estas coisas vos serão acrescentadas.", 
+                phrase: "O namoro só prosperará quando sua busca primária for o Reino, não a companhia.", 
+                stage: "Domínio Próprio", 
+                focus: "Fomentar amizades puras", 
+                period: "Semana 3: Guarda da Mente e Amor", 
+                periodDates: "27/07 a 02/08", 
+                periodIcon: "🧠", 
+                periodColor: "bg-[#FAF2EE]", 
+                meb: {
+                    obs: "Qual deve ser a nossa postura em relação aos jovens do sexo oposto na fé, de acordo com o conselho pastoral a Timóteo?",
+                    int: "Como focar excessivamente na atenção de uma única moça impede você de cultivar amizades saudáveis e edificantes com os outros alunos?",
+                    app: "O que mudará em sua postura prática nas refeições e tempos livres para garantir que você trate todas as alunas com o respeito e a pureza descritos?"
+                }
+            },
+            {
+                day: 20, 
+                date: "Sábado, 01/08/2026", 
+                title: "O Fruto do Domínio Próprio", 
+                icon: "⚓", 
+                verse: "Gálatas 5:22-23", 
+                verseText: "Mas o fruto do Espírito é: amor, alegria, paz, longanimidade, benignidade, bondade, fidelidade, mansidão, domínio próprio. Contra estas coisas não há lei.", 
+                phrase: "Maturidade espiritual é a capacidade dada por Deus de governar nossas vontades.", 
+                stage: "Domínio Próprio", 
+                focus: "Exercitar controle sobre inclinações carnais", 
+                period: "Semana 3: Guarda da Mente e Amor", 
+                periodDates: "27/07 a 02/08", 
+                periodIcon: "🧠", 
+                periodColor: "bg-[#FAF2EE]", 
+                meb: {
+                    obs: "Onde o apóstolo Paulo localiza o domínio próprio e o que isso indica sobre a origem do real autocontrole?",
+                    int: "De que modo demonstrar falta de domínio próprio nos relacionamentos afetivos indica que não estamos andando sob a liderança plena do Espírito?",
+                    app: "Avalie suas reações diárias. Em que outras áreas além da romântica (sono, apetite, palavras) você precisa exercer domínio próprio hoje?"
+                }
+            },
+            {
+                day: 21, 
+                date: "Domingo, 02/08/2026", 
+                title: "Edificando Relações Transparentes", 
+                icon: "🧱", 
+                verse: "Efésios 4:22-24", 
+                verseText: "No sentido de que, quanto ao trato passado, vos despojeis do velho homem, que se corrompe segundo as concupiscências do engano, e vos renoveis no espírito do vosso entendimento, e vos revistais do novo homem...", 
+                phrase: "Quem caminha na mentira ou no oculto destrói as bases da verdadeira comunhão.", 
+                stage: "Domínio Próprio", 
+                focus: "Deixar de lado os disfarces e segredos", 
+                period: "Semana 3: Guarda da Mente e Amor", 
+                periodDates: "27/07 a 02/08", 
+                periodIcon: "🧠", 
+                periodColor: "bg-[#FAF2EE]", 
+                meb: {
+                    obs: "Quais as duas atitudes (despojar e revestir) que caracterizam o processo contínuo de renovação do entendimento do crente?",
+                    int: "Como o costume de agir escondido ou acobertar flertes corrompe nossa integridade interna de líderes em formação?",
+                    app: "Decida hoje viver uma vida onde você não precise esconder suas conversas ou apagar históricos de mensagens. Ore pedindo purificação."
+                }
+            },
+            // SEMANA 4 (03/08 a 09/08)
+            {
+                day: 22, 
+                date: "Segunda, 03/08/2026", 
+                title: "A Disciplina como Certidão de Filho", 
+                icon: "👨‍👦", 
+                verse: "Hebreus 12:5-11", 
+                verseText: "Filho meu, não desprezes a correção do Senhor, nem desanimes quando por ele és repreendido; porque o Senhor corrige o que ama... Se suportais a correção, Deus vos trata como a filhos; porque, que filho há a quem o pai não corrija?", 
+                phrase: "A disciplina não visa punir o culpado, mas purificar o amado.", 
+                stage: "Graça", 
+                focus: "Acolher a correção paternal", 
+                period: "Semana 4: Disciplina e Graça", 
+                periodDates: "03/08 a 09/08", 
+                periodIcon: "🕊️", 
+                periodColor: "bg-[#E6F2ED]", 
+                meb: {
+                    obs: "Por qual motivo o Senhor aplica a correção e qual é a prova de identidade que a disciplina traz para o crente?",
+                    int: "Por que nós tendemos a interpretar a disciplina da coordenação do CLD como rejeição em vez de um sinal de que Deus está nos tratando como filhos?",
+                    app: "Como você pode manifestar gratidão prática ao Senhor hoje por Ele não ter te deixado persistir no erro sem correção?"
+                }
+            },
+            {
+                day: 23, 
+                date: "Terça, 04/08/2026", 
+                title: "A Repreensão que Protege e Cura", 
+                icon: "🩹", 
+                verse: "Salmo 141:5", 
+                verseText: "Fira-me o justo, será isso um favor; repreenda-me, será como óleo sobre a minha cabeça; a minha cabeça não o recusará, pois a minha oração continuará contra as próprias maldades deles.", 
+                phrase: "É melhor ser ferido pela verdade curadora do que adulado pela mentira destrutiva.", 
+                stage: "Graça", 
+                focus: "Aceitar a exortação com doçura", 
+                period: "Semana 4: Disciplina e Graça", 
+                periodDates: "03/08 a 09/08", 
+                periodIcon: "🕊️", 
+                periodColor: "bg-[#E6F2ED]", 
+                meb: {
+                    obs: "A que o salmista compara a ferida e a repreensão vindas de uma pessoa justa?",
+                    int: "Como a doçura e a abertura do seu coração podem ser um canal para que essa repreensão cure profundamente sua alma em vez de apenas te fazer se sentir mal?",
+                    app: "O que você aprendeu com o confronto do seu discipulador sobre os riscos do seu temperamento? Como colocar esse aprendizado em prática hoje?"
+                }
+            },
+            {
+                day: 24, 
+                date: "Quarta, 05/08/2026", 
+                title: "O Custo do Discipulado e Frutos de Mudança", 
+                icon: "✝️", 
+                verse: "Lucas 9:23-24 / Mateus 3:8", 
+                verseText: "Se alguém quer vir após mim, negue-se a si mesmo, e tome cada dia a sua cruz, e siga-me. Produzi, pois, frutos dignos de arrependimento.", 
+                phrase: "O verdadeiro arrependimento não se mede pelas lágrimas, mas pelos passos de obediência.", 
+                stage: "Graça", 
+                focus: "Gerar frutos práticos", 
+                period: "Semana 4: Disciplina e Graça", 
+                periodDates: "03/08 a 09/08", 
+                periodIcon: "🕊️", 
+                periodColor: "bg-[#E6F2ED]", 
+                meb: {
+                    obs: "Quais são as três atitudes contínuas e diárias que Jesus exige de todo aquele que decide segui-Lo de perto?",
+                    int: "O que constitui um 'fruto digno de arrependimento' na rotina prática do CLD depois de uma quebra de regra de relacionamento?",
+                    app: "Como o seu compromisso de respeitar rigorosamente o afastamento e o silêncio com a moça demonstra que a sua mudança é real e não apenas aparente?"
+                }
+            },
+            {
+                day: 25, 
+                date: "Quinta, 06/08/2026", 
+                title: "Andando na Luz e Olhando para a Frente", 
+                icon: "☀️", 
+                verse: "1 João 1:5-7 / Filipenses 3:13-14", 
+                verseText: "Se andarmos na luz, como ele na luz está, temos comunhão uns com os outros... esquecendo-me das coisas que atrás ficam, e avançando para as que estão diante de mim, prossigo para o alvo, pelo prêmio da soberana vocação...", 
+                phrase: "O perdão de Deus apaga a culpa para que possamos correr leves em direção ao chamado.", 
+                stage: "Graça", 
+                focus: "Abandonar o fardo da culpa", 
+                period: "Semana 4: Disciplina e Graça", 
+                periodDates: "03/08 a 09/08", 
+                periodIcon: "🕊️", 
+                periodColor: "bg-[#E6F2ED]", 
+                meb: {
+                    obs: "Segundo os apóstolos, o que é necessário para termos comunhão plena uns com os outros e o que devemos fazer com as coisas que ficaram no passado?",
+                    int: "De que forma insistir em carregar sentimentos de inutilidade ou vergonha após a disciplina é uma recusa de crer no sacrifício perfeito de Jesus?",
+                    app: "Você se sente livre e perdoado para focar totalmente no CLD hoje? O que você precisa 'deixar para trás' de uma vez por todas?"
+                }
+            },
+            {
+                day: 26, 
+                date: "Sexta, 07/08/2026", 
+                title: "Celebrando a Graça Restauradora", 
+                icon: "🕊️", 
+                verse: "Colossenses 3:1-3 / Salmo 103:1-4", 
+                verseText: "Se já ressuscitastes com Cristo, buscai as coisas que são de cima, onde Cristo está assentado à destra de Deus. Pensai nas coisas que são de cima, e não nas que são da terra. Bendize, ó minha alma, ao Senhor... que perdoa todas as tuas iniquidades...", 
+                phrase: "A graça nos restaura não apenas para nos limpar, mas para nos capacitar a servir.", 
+                stage: "Graça", 
+                focus: "Consolidar o aprendizado da jornada", 
+                period: "Semana 4: Disciplina e Graça", 
+                periodDates: "03/08 a 09/08", 
+                periodIcon: "🕊️", 
+                periodColor: "bg-[#E6F2ED]", 
+                meb: {
+                    obs: "O que o salmista ordena que sua alma faça e quais são as bênçãos pelas quais ele expressa profunda gratidão?",
+                    int: "Como esse processo de correção e disciplina amadureceu o seu caráter de forma que você se tornou um homem mais preparado para liderar outros?",
+                    app: "Ao concluir estas 4 semanas, qual é a sua principal oração e compromisso para servir no Reino com integridade a partir de Atibaia?"
+                }
+            },
+            {
+                day: 27, 
+                date: "Sábado, 08/08/2026", 
+                title: "O Propósito Final do Alinhamento", 
+                icon: "📖", 
+                verse: "2 Timóteo 3:16-17", 
+                verseText: "Toda a Escritura é inspirada por Deus e útil para o ensino, para a repreensão, para a correção, para a educação na justiça, a fim de que o homem de Deus seja perfeito e perfeitamente habilitado para toda boa obra.", 
+                phrase: "A exortação molda o vaso para torná-lo um instrumento útil nas mãos do mestre.", 
+                stage: "Graça", 
+                focus: "Preparação integral para o serviço", 
+                period: "Semana 4: Disciplina e Graça", 
+                periodDates: "03/08 a 09/08", 
+                periodIcon: "🕊️", 
+                periodColor: "bg-[#E6F2ED]", 
+                meb: {
+                    obs: "Quais as utilidades fundamentais das Escrituras descritas por Paulo e qual o objetivo final desse processo de formação?",
+                    int: "Como esta jornada de 28 dias de realinhamento cooperou para habilitar você para as boas obras que Deus preparou de antemão?",
+                    app: "Escreva uma reflexão resumida em seu caderno sobre as principais correções práticas que Deus operou em sua mentalidade neste mês."
+                }
+            },
+            {
+                day: 28, 
+                date: "Domingo, 09/08/2026", 
+                title: "Uma Nova Caminhada em Fidelidade", 
+                icon: "👣", 
+                verse: "Miqueias 6:8", 
+                verseText: "Ele te declarou, ó homem, o que é bom e o que é que o Senhor pede de ti: que pratiques a justiça, e ames a misericórdia, e andes humildemente com o teu Deus.", 
+                phrase: "A verdadeira grandeza de um líder consiste na humildade de caminhar lado a lado com o Senhor.", 
+                stage: "Graça", 
+                focus: "Consolidar a obediência e humildade continuas", 
+                period: "Semana 4: Disciplina e Graça", 
+                periodDates: "03/08 a 09/08", 
+                periodIcon: "🕊️", 
+                periodColor: "bg-[#E6F2ED]", 
+                meb: {
+                    obs: "Quais os três requisitos fundamentais que Miqueias apresenta como o resumo do que o Senhor espera da nossa conduta?",
+                    int: "De que forma praticar a justiça e amar a misericórdia alteram a forma como lidamos com as outras pessoas do sexo oposto e com as lideranças?",
+                    app: "Ao concluir este roteiro, ore assumindo um compromisso solene de andar humildemente debaixo dos planos e regras divinas todos os dias. Parabéns pelo empenho!"
+                }
+            }
+        ];
+
+        let currentActiveDay = null;
+        let timeChartInstance = null;
+
+        function initApp() {
+            renderChart();
+            renderCalendar();
+            renderDrawer();
+            
+            window.addEventListener('hashchange', handleRouting);
+            
+            const savedDay = localStorage.getItem('cld_last_day');
+            const readerWasOpen = localStorage.getItem('cld_reader_open') === 'true';
+            
+            if (window.location.hash.startsWith('#dia-')) {
+                handleRouting();
+            } else if (savedDay && readerWasOpen) {
+                window.location.hash = `#dia-${savedDay}`;
+            } else {
+                closeReader();
+            }
+            highlightToday();
+            updateProgressDOM();
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('timeChart').getContext('2d');
+            timeChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Preparação (5m)', 'Meditação (15m)', 'Resposta (10m)'],
+                    datasets: [{
+                        data: [5, 15, 10],
+                        backgroundColor: ['#E5DCD3', '#C86240', '#DCA134'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { padding: 20, color: '#1E2D3D' } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return ' ' + context.label.split(' (')[0] + ': ' + context.raw + ' min'; }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function renderCalendar() {
+            const container = document.getElementById('calendar-container');
+            container.innerHTML = '';
+            const periods = [...new Set(devotionals.map(item => item.period))];
+            
+            periods.forEach(periodName => {
+                const periodDevos = devotionals.filter(d => d.period === periodName);
+                const pColor = periodDevos[0].periodColor;
+                const pIcon = periodDevos[0].periodIcon;
+                const pDates = periodDevos[0].periodDates;
+                const card = document.createElement('div');
+                card.className = `border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-200`;
+                
+                let buttonsHTML = '';
+                periodDevos.forEach(devo => {
+                    buttonsHTML += `
+                        <button id="devo-btn-${devo.day}" onclick="openDevotional(${devo.day}, true)" class="w-full text-left px-4 py-3 border-t border-slate-100 hover:bg-slate-50 flex justify-between items-center group transition-all">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-slate-400 block">DIA ${devo.day} - ${devo.date.split(', ')[1]}</span>
+                                    <span id="badge-completed-${devo.day}" class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100 hidden">Lido</span>
+                                </div>
+                                <span class="font-semibold text-slate-800 group-hover:text-[#C86240] transition-colors text-sm">${devo.icon} ${devo.title}</span>
+                            </div>
+                            <span class="text-slate-300 group-hover:text-[#C86240] transform group-hover:translate-x-1 transition-all">➔</span>
+                        </button>
+                    `;
+                });
+                
+                card.innerHTML = `
+                    <div class="${pColor} px-4 py-3 border-b border-slate-200">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">${pIcon}</span>
+                            <div>
+                                <h3 class="font-bold text-slate-800 leading-tight font-serif text-sm md:text-base">${periodName}</h3>
+                                <span class="text-xs font-semibold text-slate-600">${pDates}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white flex-grow font-sans">
+                        ${buttonsHTML}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderDrawer() {
+            const drawerContainer = document.getElementById('drawer-content');
+            drawerContainer.innerHTML = '';
+            const periods = [...new Set(devotionals.map(item => item.period))];
+            
+            periods.forEach(periodName => {
+                const periodDevos = devotionals.filter(d => d.period === periodName);
+                const pColor = periodDevos[0].periodColor;
+                const pIcon = periodDevos[0].periodIcon;
+                const groupDiv = document.createElement('div');
+                groupDiv.className = `border border-slate-200 rounded-lg overflow-hidden flex flex-col mb-4`;
+                
+                let buttonsHTML = '';
+                periodDevos.forEach(devo => {
+                    buttonsHTML += `
+                        <button id="drawer-btn-${devo.day}" onclick="openDevotional(${devo.day}, true); toggleDrawer(false);" class="w-full text-left px-3 py-2 border-t border-slate-100 hover:bg-slate-50 flex justify-between items-center group transition-colors">
+                            <div class="text-sm">
+                                <span class="text-[10px] font-bold text-slate-400 block">DIA ${devo.day} - ${devo.date.split(', ')[1]}</span>
+                                <span class="font-semibold text-slate-800 group-hover:text-[#C86240]">${devo.icon} ${devo.title}</span>
+                            </div>
+                            <span class="text-slate-300 text-xs group-hover:text-[#C86240]">➔</span>
+                        </button>
+                    `;
+                });
+                
+                groupDiv.innerHTML = `
+                    <div class="${pColor} px-3 py-2 border-b border-slate-200 flex items-center gap-2">
+                        <span class="text-lg">${pIcon}</span>
+                        <span class="font-bold text-xs text-slate-800">${periodName}</span>
+                    </div>
+                    <div class="bg-white">
+                        ${buttonsHTML}
+                    </div>
+                `;
+                drawerContainer.appendChild(groupDiv);
+            });
+        }
+
+        function highlightToday() {
+            const completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
+            const nextPending = devotionals.find(d => !completed.includes(d.day)) || devotionals[0];
+            
+            if (nextPending) {
+                const btn = document.getElementById(`devo-btn-${nextPending.day}`);
+                if (btn) {
+                    btn.classList.add('ring-2', 'ring-[#C86240]', 'ring-offset-2', 'bg-amber-50/50');
+                    const titleSpan = btn.querySelector('.font-semibold');
+                    if (titleSpan && !btn.querySelector('.today-badge')) {
+                        const badge = document.createElement('span');
+                        badge.className = 'today-badge inline-block ml-2 bg-[#C86240] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse';
+                        badge.textContent = 'Foco';
+                        titleSpan.after(badge);
+                    }
+                }
+            }
+        }
+
+        function openTodayDevotional() {
+            const completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
+            const nextPending = devotionals.find(d => !completed.includes(d.day)) || devotionals[0];
+            if (nextPending) { openDevotional(nextPending.day, true); }
+        }
+
+        function toggleDrawer(isOpen) {
+            const drawer = document.getElementById('sidebar-drawer');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (isOpen) {
+                drawer.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+                setTimeout(() => { backdrop.classList.add('opacity-100'); }, 10);
+            } else {
+                drawer.classList.add('-translate-x-full');
+                backdrop.classList.remove('opacity-100');
+                setTimeout(() => { backdrop.classList.add('hidden'); }, 300);
+            }
+        }
+
+        function handleRouting() {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#dia-')) {
+                const day = parseInt(hash.replace('#dia-', ''));
+                if (day >= 1 && day <= devotionals.length) {
+                    openDevotional(day, false);
+                    return;
+                }
+            }
+            closeReader();
+        }
+
+        function closeReader() {
+            if (window.location.hash !== '' && window.location.hash !== '#') {
+                history.replaceState(null, null, ' ');
+            }
+            document.getElementById('calendar-section').classList.remove('hidden');
+            document.getElementById('dynamics-section').classList.remove('hidden');
+            document.getElementById('dashboard-section').classList.remove('hidden');
+            document.getElementById('reader-section').classList.add('hidden');
+            
+            localStorage.setItem('cld_reader_open', 'false');
+            localStorage.removeItem('cld_last_day');
+            
+            devotionals.forEach(d => {
+                const button = document.getElementById(`devo-btn-${d.day}`);
+                const drawerButton = document.getElementById(`drawer-btn-${d.day}`);
+                if (button) button.classList.remove('bg-slate-50', 'border-l-4', 'border-l-[#C86240]');
+                if (drawerButton) drawerButton.classList.remove('bg-slate-50', 'border-l-4', 'border-l-[#C86240]');
+            });
+            highlightToday();
+            updateProgressDOM();
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        function openDevotional(dayNumber, shouldScroll = true) {
+            const devo = devotionals.find(d => d.day === dayNumber);
+            if (!devo) return;
+            currentActiveDay = dayNumber;
+            localStorage.setItem('cld_last_day', dayNumber);
+            localStorage.setItem('cld_reader_open', 'true');
+            
+            if (window.location.hash !== `#dia-${dayNumber}`) {
+                window.location.hash = `#dia-${dayNumber}`;
+            }
+            
+            devotionals.forEach(d => {
+                const button = document.getElementById(`devo-btn-${d.day}`);
+                const drawerButton = document.getElementById(`drawer-btn-${d.day}`);
+                if (button) {
+                    if (d.day === dayNumber) { button.classList.add('bg-slate-50', 'border-l-4', 'border-l-[#C86240]'); }
+                    else { button.classList.remove('bg-slate-50', 'border-l-4', 'border-l-[#C86240]'); }
+                }
+                if (drawerButton) {
+                    if (d.day === dayNumber) { drawerButton.classList.add('bg-slate-50', 'border-l-4', 'border-l-[#C86240]'); }
+                    else { drawerButton.classList.remove('bg-slate-50', 'border-l-4', 'border-l-[#C86240]'); }
+                }
+            });
+            
+            document.getElementById('calendar-section').classList.add('hidden');
+            document.getElementById('dynamics-section').classList.add('hidden');
+            document.getElementById('dashboard-section').classList.add('hidden');
+            
+            document.getElementById('read-period').textContent = devo.period;
+            document.getElementById('read-title').innerHTML = `${devo.icon} ${devo.title}`;
+            document.getElementById('read-date').textContent = `${devo.date} • Estudo Prático`;
+            document.getElementById('read-verse').textContent = devo.verse;
+            document.getElementById('read-verse-text').textContent = devo.verseText;
+            document.getElementById('read-phrase').textContent = devo.phrase;
+            document.getElementById('read-stage').textContent = devo.stage;
+            document.getElementById('read-focus').textContent = devo.focus;
+            
+            document.getElementById('read-obs').textContent = devo.meb.obs;
+            document.getElementById('read-int').textContent = devo.meb.int;
+            document.getElementById('read-app').textContent = devo.meb.app;
+            
+            const isCompleted = isDayCompleted(dayNumber);
+            updateMarkReadButton(isCompleted);
+            
+            const prevBtn = document.getElementById('nav-prev-btn');
+            const nextBtn = document.getElementById('nav-next-btn');
+            const upBtn = document.getElementById('nav-up-btn');
+            
+            if (dayNumber === 1) { prevBtn.classList.add('invisible'); } 
+            else { prevBtn.classList.remove('invisible'); prevBtn.onclick = () => openDevotional(dayNumber - 1, true); }
+            
+            if (dayNumber === devotionals.length) { nextBtn.classList.add('invisible'); } 
+            else { nextBtn.classList.remove('invisible'); nextBtn.onclick = () => openDevotional(dayNumber + 1, true); }
+            
+            upBtn.onclick = closeReader;
+            document.getElementById('reader-section').classList.remove('hidden');
+            
+            if (shouldScroll) { window.scrollTo({top: 0, behavior: 'smooth'}); }
+        }
+
+        function isDayCompleted(day) {
+            const completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
+            return completed.includes(day);
+        }
+
+        function toggleDayCompleted() {
+            if (!currentActiveDay) return;
+            let completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
+            if (completed.includes(currentActiveDay)) { completed = completed.filter(d => d !== currentActiveDay); } 
+            else { completed.push(currentActiveDay); }
+            localStorage.setItem('apv_completed_days', JSON.stringify(completed));
+            updateMarkReadButton(completed.includes(currentActiveDay));
+            updateProgressDOM();
+        }
+
+        function updateMarkReadButton(isCompleted) {
+            const btn = document.getElementById('mark-read-btn');
+            if (isCompleted) {
+                btn.className = "text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 transition-colors shadow-sm";
+                btn.innerHTML = "✓ Lido";
+            } else {
+                btn.className = "text-xs font-bold px-3 py-1 rounded-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-colors shadow-sm";
+                btn.innerHTML = "Marcar como Lido";
+            }
+            btn.onclick = toggleDayCompleted;
+        }
+
+        function updateProgressDOM() {
+            const completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
+            const count = completed.length;
+            const percentage = Math.round((count / devotionals.length) * 100) || 0;
+            document.getElementById('progress-percentage').textContent = `${percentage}%`;
+            document.getElementById('progress-counts').textContent = `${count} de ${devotionals.length} dias`;
+            
+            devotionals.forEach(devo => {
+                const badge = document.getElementById(`badge-completed-${devo.day}`);
+                if (badge) {
+                    if (completed.includes(devo.day)) { badge.classList.remove('hidden'); } 
+                    else { badge.classList.add('hidden'); }
+                }
+            });
+        }
+
+        function resetProgress() {
+            if (confirm("Deseja zerar todo o seu histórico e progresso de estudos diários?")) {
+                localStorage.setItem('apv_completed_days', '[]');
+                updateProgressDOM();
+                if (currentActiveDay) { updateMarkReadButton(false); }
+                closeReader();
+            }
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
