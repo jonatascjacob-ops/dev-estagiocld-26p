@@ -698,6 +698,16 @@
         }
 
         function highlightToday() {
+            // Limpa o destaque e badges anteriores de todos os botões
+            devotionals.forEach(d => {
+                const btn = document.getElementById(`devo-btn-${d.day}`);
+                if (btn) {
+                    btn.classList.remove('ring-2', 'ring-[#C86240]', 'ring-offset-2', 'bg-amber-50/50');
+                    const badge = btn.querySelector('.today-badge');
+                    if (badge) badge.remove();
+                }
+            });
+
             const completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
             const nextPending = devotionals.find(d => !completed.includes(d.day)) || devotionals[0];
             
