@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jornada de Alinhamento e Restauração</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/tailwind.js"></script>
+    <script src="assets/chart.js"></script>
     <style>
         .chart-container {
             position: relative;
@@ -132,43 +132,20 @@
             </div>
         </details>
 
-        <section id="dashboard-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div>
-                    <h3 class="font-bold text-slate-800 text-base md:text-lg">Progresso da Jornada (13/07 a 09/08)</h3>
-                    <p class="text-slate-500 text-xs md:text-sm">Complete os 28 dias de estudo de forma constante e sincera.</p>
-                </div>
-                <div class="flex items-center gap-4">
-                    <div class="bg-[#FAF8F5] border border-slate-200 rounded-lg px-4 py-2 text-center shadow-inner">
-                        <span id="progress-percentage" class="text-2xl font-black text-[#C86240]">0%</span>
-                        <span class="block text-[10px] text-slate-500 font-bold uppercase tracking-wider">Concluído</span>
-                    </div>
-                    <div class="text-left">
-                        <span id="progress-counts" class="text-sm font-bold text-slate-700">0 lidos</span>
-                        <button onclick="resetProgress()" class="block text-[10px] text-red-500 hover:text-red-700 underline font-semibold mt-1">Limpar Progresso</button>
-                    </div>
-                </div>
+        <section id="dashboard-section" class="bg-white rounded-xl shadow-sm p-5 border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h3 class="font-bold text-slate-800 text-base md:text-lg">Progresso da Jornada (13/07 a 09/08)</h3>
+                <p class="text-slate-500 text-xs md:text-sm">Complete os 28 dias de estudo de forma constante e sincera.</p>
             </div>
-            <div class="border-t border-slate-100 bg-[#FAF8F5]/30 p-4">
-                <details class="group">
-                    <summary class="flex justify-between items-center cursor-pointer text-xs font-bold text-slate-500 uppercase tracking-wider select-none list-none">
-                        <div class="flex items-center gap-2">
-                            <span>📝</span>
-                            <span>Log de Atividades & Progresso</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <button type="button" onclick="exportLog(event)" class="bg-[#C86240] hover:bg-[#B35232] text-white text-[10px] font-bold px-2.5 py-1 rounded transition-colors flex items-center gap-1 normal-case tracking-normal">
-                                <span>📥</span> Baixar Arquivo Log
-                            </button>
-                            <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
-                        </div>
-                    </summary>
-                    <div class="mt-3 overflow-x-auto">
-                        <div id="log-list" class="space-y-1.5 max-h-40 overflow-y-auto text-xs text-slate-600 font-mono pr-2">
-                            <p class="italic text-slate-400">Nenhuma atividade registrada ainda. Conclua uma devocional para iniciar o log!</p>
-                        </div>
-                    </div>
-                </details>
+            <div class="flex items-center gap-4">
+                <div class="bg-[#FAF8F5] border border-slate-200 rounded-lg px-4 py-2 text-center shadow-inner">
+                    <span id="progress-percentage" class="text-2xl font-black text-[#C86240]">0%</span>
+                    <span class="block text-[10px] text-slate-500 font-bold uppercase tracking-wider">Concluído</span>
+                </div>
+                <div class="text-left">
+                    <span id="progress-counts" class="text-sm font-bold text-slate-700">0 lidos</span>
+                    <button onclick="resetProgress()" class="block text-[10px] text-red-500 hover:text-red-700 underline font-semibold mt-1">Limpar Progresso</button>
+                </div>
             </div>
         </section>
 
@@ -269,7 +246,7 @@
     </main>
 
     <footer class="bg-[#1E2D3D] text-white/60 text-center py-6 text-sm mt-12">
-        <p>© 2026 Ministério com Juventude - Organização Palavra da Vida Sudeste.</p>
+        <p id="footer-copyright" class="cursor-default select-none">© 2026 Ministério com Juventude - Organização Palavra da Vida Sudeste.</p>
         <p class="text-xs text-white/40 mt-1">"A obediência é melhor do que o sacrifício."</p>
     </footer>
 
@@ -866,6 +843,35 @@
             }
             highlightToday();
             updateProgressDOM();
+
+            // Secret trigger: Ctrl+Shift+L to export logs
+            window.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && e.key === 'L') {
+                    e.preventDefault();
+                    exportLog();
+                }
+            });
+
+            // Secret trigger: 5 clicks on footer copyright to export logs
+            let copyrightClickCount = 0;
+            let copyrightTimeout;
+            document.getElementById('footer-copyright')?.addEventListener('click', () => {
+                copyrightClickCount++;
+                clearTimeout(copyrightTimeout);
+                if (copyrightClickCount >= 5) {
+                    copyrightClickCount = 0;
+                    exportLog();
+                } else {
+                    copyrightTimeout = setTimeout(() => { copyrightClickCount = 0; }, 3000);
+                }
+            });
+
+            // Register Service Worker for offline support
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registrado:', reg.scope))
+                    .catch(err => console.error('Erro ao registrar Service Worker:', err));
+            }
         }
 
         function updateTimeBreakdown() {
