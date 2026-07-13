@@ -435,14 +435,11 @@
         }
 
         function handleLogout() {
-            // Remove a chave de login diretamente (sem confirm para evitar bloqueios de popups)
+            // Remove a chave de login
             window.localStorage.removeItem('cld_logged_in_user');
             
-            // Limpa o hash de navegação para recarregar na raiz da página
-            window.location.hash = '';
-            
-            // Força a recarga limpa do aplicativo
-            window.location.reload();
+            // Redireciona limpando o hash de forma robusta e recarregando a página
+            window.location.replace(window.location.pathname);
         }
 
         function syncActivity(dayNumber, action) {

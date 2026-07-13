@@ -31,12 +31,27 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Apenas intercepta e trata requisições GET
+  if (event.request.method !== 'GET') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request);
-    })
+    fetch(event.request)
+      .then(response => {
+        // Atualiza o cache dinamicamente se for uma resposta válida e do mesmo origin
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // Se a rede falhar (offline), busca no cache
+        return caches.match(event.request);
+      })
   );
 });
