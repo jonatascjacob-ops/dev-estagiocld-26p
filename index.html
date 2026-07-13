@@ -76,8 +76,8 @@
     </div>
 
     <header class="bg-[#1E2D3D] text-white p-6 shadow-md text-center">
-        <h1 class="text-3xl font-bold tracking-tight font-serif">Jornada de Alinhamento e Restauração</h1>
-        <p class="text-[#DCA134] mt-2 text-xs md:text-sm uppercase tracking-wider font-semibold max-w-2xl mx-auto leading-relaxed">Devocional para alunos do Curso de Liderança e Discipulado (CLD) em processo de restauração • Discipulado com Jacob.</p>
+        <h1 id="main-header-title" class="text-3xl font-bold tracking-tight font-serif">Jornada de Alinhamento e Restauração</h1>
+        <p id="main-header-subtitle" class="text-[#DCA134] mt-2 text-xs md:text-sm uppercase tracking-wider font-semibold max-w-2xl mx-auto leading-relaxed">Devocional para alunos do Curso de Liderança e Discipulado (CLD) em processo de restauração • Discipulado com Jacob.</p>
     </header>
 
     <main class="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
@@ -310,6 +310,44 @@
             
             // Carrega os dados específicos do usuário logado
             devotionals = DEVOTIONALS_BY_USER[loggedInUser] || [];
+            
+            // Atualiza o cabeçalho dinamicamente de acordo com o aluno logado
+            const USER_HEADERS = {
+                "Pedro": {
+                    title: "Jornada de Alinhamento e Restauração",
+                    subtitle: "Devocional para Pedro • Curso de Liderança e Discipulado (CLD) em processo de restauração • Discipulado com Jacob."
+                },
+                "Joaquim": {
+                    title: "Jornada de Alinhamento e Restauração",
+                    subtitle: "Devocional para Joaquim • Curso de Liderança e Discipulado (CLD) em processo de restauração • Discipulado com Jacob."
+                },
+                "Isaac": {
+                    title: "Jornada de Alinhamento e Restauração",
+                    subtitle: "Devocional para Isaac • Curso de Liderança e Discipulado (CLD) em processo de restauração • Discipulado com Jacob."
+                },
+                "Lucas": {
+                    title: "Crescimento no Serviço",
+                    subtitle: "Devocional de Estágio para Lucas • Curso de Liderança e Discipulado (CLD) • Discipulado com Jacob."
+                },
+                "Julio": {
+                    title: "Crescimento no Serviço",
+                    subtitle: "Devocional de Estágio para Julio • Curso de Liderança e Discipulado (CLD) • Discipulado com Jacob."
+                },
+                "Gustavo": {
+                    title: "Crescimento no Serviço",
+                    subtitle: "Devocional de Estágio para Gustavo • Curso de Liderança e Discipulado (CLD) • Discipulado com Jacob."
+                }
+            };
+
+            const headerInfo = USER_HEADERS[loggedInUser] || {
+                title: "Jornada de Alinhamento e Restauração",
+                subtitle: "Devocional para alunos do Curso de Liderança e Discipulado (CLD) • Discipulado com Jacob."
+            };
+
+            const mainTitle = document.getElementById('main-header-title');
+            const mainSubtitle = document.getElementById('main-header-subtitle');
+            if (mainTitle) mainTitle.textContent = headerInfo.title;
+            if (mainSubtitle) mainSubtitle.textContent = headerInfo.subtitle;
             
             // Popula o badge de nome do usuário no dashboard
             const nameBadge = document.getElementById('user-name-badge');
