@@ -408,7 +408,7 @@
         }
 
         function syncActivity(dayNumber, action) {
-            const student = localStorage.getItem('cld_user_name') || "Usuário Anônimo";
+            const student = window.localStorage.getItem('cld_logged_in_user') || "Usuário Anônimo";
             const payload = {
                 student: student,
                 day: dayNumber === 0 ? "Sistema" : `Dia ${dayNumber}`,
