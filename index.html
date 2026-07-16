@@ -271,9 +271,13 @@
             "Gustavo": "j3y7c5"
         };
 
+        // _currentUser é definido em initApp() e garante que o escopo de storage
+        // não mude no meio de uma sessão, mesmo que o iOS Safari limpe o localStorage.
+        let _currentUser = window.localStorage.getItem('cld_logged_in_user') || 'default';
+
         const AppStorage = {
             getUser() {
-                return window.localStorage.getItem('cld_logged_in_user') || 'default';
+                return _currentUser;
             },
             getScopedKey(key) {
                 if (key === 'cld_logged_in_user') return key;
@@ -292,7 +296,7 @@
 
         const localStorage = AppStorage;
 
-        let devotionals = [];;
+        let devotionals = [];
 
         let currentActiveDay = null;
         let timeChartInstance = null;
@@ -307,6 +311,17 @@
             }
             
             if (loginOverlay) loginOverlay.classList.add('hidden');
+
+            // Atualiza o escopo de usuário para a sessão atual
+            _currentUser = loggedInUser;
+
+            // Migração: se há dados salvos em '_default' (ex: sessão sem login), migra para a chave correta do usuário
+            const defaultCompleted = window.localStorage.getItem('apv_completed_days_default');
+            const userCompleted = window.localStorage.getItem(`apv_completed_days_${loggedInUser}`);
+            if (defaultCompleted && defaultCompleted !== '[]' && (!userCompleted || userCompleted === '[]')) {
+                window.localStorage.setItem(`apv_completed_days_${loggedInUser}`, defaultCompleted);
+                window.localStorage.removeItem('apv_completed_days_default');
+            }
             
             // Carrega os dados específicos do usuário logado
             devotionals = DEVOTIONALS_BY_USER[loggedInUser] || [];
@@ -377,7 +392,15 @@
             
             // Tenta processar conexões pendentes caso o usuário esteja online
             processPendingSyncs();
-            window.addEventListener('online', processPendingSyncs);
+            window.addEventListener('online', () => {
+                processPendingSyncs();
+                processPendingProgressSync();
+            });
+
+            // Busca o progresso atualizado do Google Sheets ao iniciar (se online)
+            if (navigator.onLine) {
+                fetchProgressFromSheets(loggedInUser);
+            }
 
             // Secret trigger: Ctrl+Shift+L to export logs
             window.addEventListener('keydown', (e) => {
@@ -511,6 +534,86 @@
                 pending.unshift(payload);
                 localStorage.setItem('apv_pending_syncs', JSON.stringify(pending));
             });
+        }
+
+        // ─── Sincronização de Progresso com Google Sheets ────────────────
+
+        function fetchProgressFromSheets(user) {
+            if (!GOOGLE_SCRIPT_URL || !user) return;
+            const url = `${GOOGLE_SCRIPT_URL}?action=getProgress&user=${encodeURIComponent(user)}`;
+            fetch(url, { method: 'GET' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        console.warn('Sheets getProgress error:', data.error);
+                        return;
+                    }
+                    const remoteCompleted = Array.isArray(data.completed) ? data.completed : [];
+                    const localCompleted = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
+
+                    // Mesclagem por união: nunca perde progresso de nenhum dispositivo
+                    const merged = [...new Set([...localCompleted, ...remoteCompleted])];
+
+                    // Só atualiza se o Sheets tiver algo a mais
+                    if (merged.length > localCompleted.length) {
+                        localStorage.setItem('apv_completed_days', JSON.stringify(merged));
+                        updateProgressDOM();
+                        // Atualiza o botão de leitura se houver devocional aberto
+                        if (currentActiveDay) {
+                            updateMarkReadButton(isDayCompleted(currentActiveDay));
+                        }
+                        highlightToday();
+                        console.log(`Progresso sincronizado do Sheets: ${merged.length} dias para ${user}`);
+                    }
+                })
+                .catch(err => console.warn('Falha ao buscar progresso do Sheets (offline?):', err));
+        }
+
+        function pushProgressToSheets(completedArray) {
+            if (!GOOGLE_SCRIPT_URL) return;
+            const user = _currentUser;
+            const payload = {
+                action: 'updateProgress',
+                user: user,
+                completed: completedArray
+            };
+
+            if (!navigator.onLine) {
+                // Salva na fila de progresso pendente para enviar quando voltar online
+                queueProgressSync(completedArray);
+                return;
+            }
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) console.warn('Sheets updateProgress error:', data.error);
+            })
+            .catch(err => {
+                console.warn('Falha ao enviar progresso ao Sheets, enfileirando...', err);
+                queueProgressSync(completedArray);
+            });
+        }
+
+        function queueProgressSync(completedArray) {
+            // Armazena o estado mais recente (substitui o anterior na fila — não faz sentido empilhar)
+            const user = _currentUser;
+            window.localStorage.setItem(`apv_pending_progress_${user}`, JSON.stringify(completedArray));
+        }
+
+        function processPendingProgressSync() {
+            if (!GOOGLE_SCRIPT_URL || !navigator.onLine) return;
+            const user = _currentUser;
+            const pendingKey = `apv_pending_progress_${user}`;
+            const pending = window.localStorage.getItem(pendingKey);
+            if (!pending) return;
+            const completedArray = JSON.parse(pending);
+            window.localStorage.removeItem(pendingKey);
+            pushProgressToSheets(completedArray);
         }
 
         function updateTimeBreakdown() {
@@ -736,6 +839,28 @@
             });
         }
 
+        function getTodayDevotional() {
+            // Encontra o devocional cujas datas correspondem ao dia real de hoje
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
+            const dayMap = { 0: 'Domingo', 1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado' };
+            const dayName = dayMap[dayOfWeek];
+            const dd = String(today.getDate()).padStart(2, '0');
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const yyyy = today.getFullYear();
+            const todayStr = `${dayName}, ${dd}/${mm}/${yyyy}`;
+            
+            // Busca o devocional cuja data bate com hoje
+            const todayDevo = devotionals.find(d => d.date === todayStr);
+            if (todayDevo) return todayDevo;
+            
+            // Fallback: se hoje está antes do início, retorna o primeiro;
+            // se já passou do fim, retorna o último.
+            const firstDate = new Date(devotionals[0]?.date.split(', ')[1]?.split('/').reverse().join('-'));
+            if (today < firstDate) return devotionals[0];
+            return null; // Fora do período
+        }
+
         function highlightToday() {
             // Limpa o destaque e badges anteriores de todos os botões
             devotionals.forEach(d => {
@@ -747,11 +872,11 @@
                 }
             });
 
-            const completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
-            const nextPending = devotionals.find(d => !completed.includes(d.day)) || devotionals[0];
+            // Usa a data real de hoje para encontrar o devocional correto
+            const todayDevo = getTodayDevotional();
             
-            if (nextPending) {
-                const btn = document.getElementById(`devo-btn-${nextPending.day}`);
+            if (todayDevo) {
+                const btn = document.getElementById(`devo-btn-${todayDevo.day}`);
                 if (btn) {
                     btn.classList.add('ring-2', 'ring-[#C86240]', 'ring-offset-2', 'bg-amber-50/50');
                     const titleSpan = btn.querySelector('.font-semibold');
@@ -766,9 +891,15 @@
         }
 
         function openTodayDevotional() {
-            const completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
-            const nextPending = devotionals.find(d => !completed.includes(d.day)) || devotionals[0];
-            if (nextPending) { openDevotional(nextPending.day, true); }
+            // Abre o devocional do dia real de hoje; se não encontrar, abre o próximo pendente
+            const todayDevo = getTodayDevotional();
+            if (todayDevo) {
+                openDevotional(todayDevo.day, true);
+            } else {
+                const completed = JSON.parse(localStorage.getItem('apv_completed_days') || '[]');
+                const nextPending = devotionals.find(d => !completed.includes(d.day)) || devotionals[0];
+                if (nextPending) { openDevotional(nextPending.day, true); }
+            }
         }
 
         function toggleDrawer(isOpen) {
@@ -935,6 +1066,8 @@
             localStorage.setItem('apv_completed_days', JSON.stringify(completed));
             updateMarkReadButton(completed.includes(currentActiveDay));
             updateProgressDOM();
+            // Sincroniza com Google Sheets em segundo plano
+            pushProgressToSheets(completed);
         }
 
         function updateMarkReadButton(isCompleted) {
@@ -971,6 +1104,8 @@
                 logActivity(0, "Histórico zerado");
                 updateProgressDOM();
                 if (currentActiveDay) { updateMarkReadButton(false); }
+                // Sincroniza o reset com Google Sheets
+                pushProgressToSheets([]);
                 closeReader();
             }
         }
